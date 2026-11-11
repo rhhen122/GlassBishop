@@ -14,6 +14,14 @@ public final class MoveSelector {
     private final StupidityScorer scorer = new StupidityScorer();
 
     public Optional<MoveRecommendation> leastStupidMove(Board board) {
+        return select(board, false);
+    }
+
+    public Optional<MoveRecommendation> mostStupidMove(Board board) {
+        return select(board, true);
+    }
+
+    private Optional<MoveRecommendation> select(Board board, boolean maximizeScore) {
         Color sideToMove = board.sideToMove();
         List<Move> legalMoves = moveGenerator.legalMoves(board, sideToMove);
         Move bestMove = null;
@@ -21,7 +29,9 @@ public final class MoveSelector {
 
         for (Move move : legalMoves) {
             ScoreResult result = scorer.score(board.apply(move));
-            if (bestResult == null || result.score() < bestResult.score()) {
+            if (bestResult == null
+                    || (maximizeScore && result.score() > bestResult.score())
+                    || (!maximizeScore && result.score() < bestResult.score())) {
                 bestMove = move;
                 bestResult = result;
             }

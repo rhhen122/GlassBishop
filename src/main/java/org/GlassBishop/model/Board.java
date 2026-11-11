@@ -18,6 +18,21 @@ public final class Board {
         this.enPassantTarget = enPassantTarget;
     }
 
+    public static Board standardStartingPosition() {
+        Piece[][] squares = new Piece[8][8];
+        PieceType[] backRank = {
+                PieceType.ROOK, PieceType.KNIGHT, PieceType.BISHOP, PieceType.QUEEN,
+                PieceType.KING, PieceType.BISHOP, PieceType.KNIGHT, PieceType.ROOK
+        };
+        for (int file = 0; file < 8; file++) {
+            squares[file][0] = new Piece(Color.WHITE, backRank[file]);
+            squares[file][1] = new Piece(Color.WHITE, PieceType.PAWN);
+            squares[file][6] = new Piece(Color.BLACK, PieceType.PAWN);
+            squares[file][7] = new Piece(Color.BLACK, backRank[file]);
+        }
+        return new Board(squares, Color.WHITE, EnumSet.allOf(CastlingRight.class), null);
+    }
+
     public Piece pieceAt(Square square) {
         return squares[square.file()][square.rank()];
     }

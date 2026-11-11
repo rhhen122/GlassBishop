@@ -7,11 +7,14 @@ import org.GlassBishop.io.PositionJsonReader;
 import org.GlassBishop.model.Board;
 import org.GlassBishop.scoring.ScoreResult;
 import org.GlassBishop.scoring.StupidityScorer;
+import org.GlassBishop.ui.ChessGameWindow;
 import org.GlassBishop.utility.BoardPrinter;
 import org.GlassBishop.utility.PrintASCII;
 
 import java.io.IOException;
+import java.awt.GraphicsEnvironment;
 import java.nio.file.Path;
+import javax.swing.SwingUtilities;
 
 public class Main {
     public static void main(String[] args) throws IOException {
@@ -19,8 +22,15 @@ public class Main {
             printHelp();
             return;
         }
+        if (args.length == 1 && args[0].equalsIgnoreCase("play")) {
+            if (GraphicsEnvironment.isHeadless()) {
+                throw new IllegalStateException("Cannot start the Swing game in a headless environment");
+            }
+            SwingUtilities.invokeLater(() -> new ChessGameWindow().show());
+            return;
+        }
         if (args.length != 1) {
-            System.err.println("Expected one position JSON file. Run with 'help' for usage.");
+            System.err.println("Expected one position JSON file or 'play'. Run with 'help' for usage.");
             return;
         }
         Board board = new PositionJsonReader().read(Path.of(args[0]));
@@ -57,6 +67,7 @@ public class Main {
         System.out.println();
         System.out.println("Usage:");
         System.out.println("  java -jar target/GlassBishop-0.1.jar <position.json>");
+        System.out.println("  java -jar target/GlassBishop-0.1.jar play");
         System.out.println("  java -jar target/GlassBishop-0.1.jar help");
         System.out.println();
         System.out.println("Examples:");

@@ -18,7 +18,7 @@
 
 Glass Bishop rates how **stupid** a position is. It reads a user's chess position from JSON, constructs a board, analyzes White's material and threats, searches for checkmate in one when White is to move, and reports a 0–100 Stupidity Score and its Stupidity Rating. It also examines every legal move for the side to move and recommends the move whose resulting position has the lowest Stupidity Score. A higher score means a more "stupid" position.
 
-The engine is a one-ply move selector, not a full game-playing engine: it scores each legal next move but does not search a multi-move game tree. Scores are always from White's perspective, as specified by the scoring system.
+Position analysis recommends a move using a one-ply comparison against the Stupidity Score. The Swing game uses a separate deeper search to make the Black opponent more competitive. Neither mode searches an unlimited game tree. The published Stupidity Score remains White-centric.
 
 ## What happens when it runs?
 
@@ -167,6 +167,14 @@ java -jar target/GlassBishop-0.1.jar
 java -jar target/GlassBishop-0.1.jar help
 ```
 
+Start the Swing game and play White against the engine as Black:
+
+```sh
+java -jar target/GlassBishop-0.1.jar play
+```
+
+Click a White piece and then one of its highlighted legal destinations. The board uses Unicode chess glyphs (`♔ ♕ ♖ ♗ ♘ ♙` for White and `♚ ♛ ♜ ♝ ♞ ♟` for Black), highlighted source/destination squares, and a compact dark header. A vertical evaluation bar shows the current position balance (White advantage grows from the bottom; Black advantage grows from the top), with a pawn-value estimate beside it. The engine responds after your move; pawn promotions let you choose a piece using its glyph. The board shows a checkmate or stalemate message when the game ends. This mode requires a desktop environment with a graphical display and a font that supports Unicode chess symbols.
+
 Run a demo:
 
 ```sh
@@ -175,9 +183,9 @@ java -jar target/GlassBishop-0.1.jar examples/white-piece-attacked.json
 java -jar target/GlassBishop-0.1.jar examples/white-mate-in-one.json
 ```
 
-The CLI accepts no arguments or the single argument `help` to print the help menu; otherwise, pass exactly one JSON file path. For a position, it prints an ASCII board (ranks 8 to 1 from top to bottom, files a to h from left to right). White pieces are uppercase (`P N B R Q K`), Black pieces are lowercase (`p n b r q k`), and `.` marks an empty square. It then prints the current position's White material, attacked White material, mate-in-one status, score, and rating. If legal moves exist, it also prints how many it evaluated and the recommended move in coordinate notation (for example `e2e4` or `a7a8q`), plus the resulting score and rating. If the side to move has no legal moves, it reports checkmate or stalemate instead. Invalid argument combinations, unreadable/invalid JSON, or invalid position metadata are reported rather than producing an evaluation.
+The CLI accepts no arguments or the single argument `help` to print the help menu, `play` to open the Swing game, or one JSON file path to analyze a position. For a JSON position, it prints an ASCII board (ranks 8 to 1 from top to bottom, files a to h from left to right). White pieces are uppercase (`P N B R Q K`), Black pieces are lowercase (`p n b r q k`), and `.` marks an empty square. It then prints the current position's White material, attacked White material, mate-in-one status, score, and rating. If legal moves exist, it also prints how many it evaluated and the recommended move in coordinate notation (for example `e2e4` or `a7a8q`), plus the resulting score and rating. If the side to move has no legal moves, it reports checkmate or stalemate instead. Invalid argument combinations, unreadable/invalid JSON, or invalid position metadata are reported rather than producing an evaluation.
 
-The recommendation is the legal move with the lowest resulting Stupidity Score, not necessarily the strongest chess move. Each candidate is applied to an independent board state, and the unchanged scoring formula is used on that resulting position. When scores tie, the first move in the generator's order is returned.
+The analysis command recommends the legal move with the lowest resulting Stupidity Score, not necessarily the strongest chess move. Each candidate is applied to an independent board state, and the unchanged scoring formula is used on that resulting position. When scores tie, the first move in the generator's order is returned.
 
 Run the automated tests with:
 
@@ -198,7 +206,12 @@ Each package has one responsibility:
 | `org.GlassBishop.engine.MoveGenerator` | Candidate move generation and legal-move filtering |
 | `org.GlassBishop.engine.PositionAnalyzer` | White material, attacked material, checkmate, and mate-in-one analysis |
 | `org.GlassBishop.engine.MoveSelector` | Scores each legal successor position and chooses the lowest-scoring move |
+| `org.GlassBishop.engine.SmartMoveSelector` | Searches legal continuations with alpha-beta minimax for Swing-game moves |
+| `org.GlassBishop.engine.PositionEvaluator` | Estimates material, piece activity, threats, and terminal checkmate for search and the UI bar |
 | `org.GlassBishop.engine.MoveRecommendation` | Carries the selected move, its resulting score, and number of evaluated legal moves |
+| `org.GlassBishop.engine.ChessGame` | Manages a game against the engine, validating human moves and applying engine replies |
+| `org.GlassBishop.ui.ChessGameWindow` | Swing board interface for a human playing White against the engine |
+| `org.GlassBishop.ui.EvaluationBar` | Paints a bounded visual representation of White's positional advantage |
 | `org.GlassBishop.scoring.StupidityScorer` | Applies the 0–100 scoring formula |
 | `org.GlassBishop.scoring.StupidityRating` | Maps scores to the existing rating bands |
 | `org.GlassBishop.scoring.ScoreResult` | Carries the score and reported component values |
@@ -209,7 +222,8 @@ Each package has one responsibility:
 ## Scope and limitations
 
 - Evaluation reports White's material, attacked pieces, and mate in one; it does not evaluate Black's material, positional advantage, or initiative.
-- Move selection examines one ply (each legal move and its resulting position). It does not search a deeper tactical tree or identify the objectively best chess move.
+- The analysis command examines one ply and chooses by the Stupidity Score. The Swing-game bot searches four plies with alpha-beta minimax, ordering captures and promotions first; its lightweight evaluator considers material, piece placement, attacks, and checkmate. This is stronger than one-ply selection but is not a tournament-grade engine.
+- In the Swing game the human plays White and the bot plays Black, choosing moves to reduce White's positional advantage.
 - The engine does not enforce repetition, the fifty-move rule, insufficient-material draws, move counters, or game history. The supplied board and special-move rights are treated as the complete position.
 - The reader checks basic structural consistency, not every requirement for a historically reachable FIDE position.
 - Because attacked material measures attacked squares rather than likely captures, it should be interpreted as a simple exposure signal, not as a full chess evaluation.

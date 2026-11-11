@@ -23,7 +23,7 @@ class SmartMoveSelectorTest {
         place(squares, "d8", Color.BLACK, PieceType.ROOK);
         Board board = new Board(squares, Color.BLACK, EnumSet.noneOf(CastlingRight.class), null);
 
-        var move = new SmartMoveSelector().bestMove(board).orElseThrow();
+        var move = new SmartMoveSelector(Difficulty.LEVEL_5).bestMove(board).orElseThrow();
 
         assertEquals("d8d4", move.toUci());
     }

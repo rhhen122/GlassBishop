@@ -3,6 +3,7 @@ package org.GlassBishop;
 import org.GlassBishop.engine.MoveRecommendation;
 import org.GlassBishop.engine.MoveSelector;
 import org.GlassBishop.engine.PositionAnalyzer;
+import org.GlassBishop.engine.Difficulty;
 import org.GlassBishop.io.PositionJsonReader;
 import org.GlassBishop.model.Board;
 import org.GlassBishop.scoring.ScoreResult;
@@ -22,20 +23,30 @@ public class Main {
             printHelp();
             return;
         }
-        if (args.length == 1 && args[0].equalsIgnoreCase("play")) {
+        if (args[0].equalsIgnoreCase("play") || args[0].equalsIgnoreCase("selfplay")) {
+            Difficulty difficulty = parseDepth(args, 1);
             if (GraphicsEnvironment.isHeadless()) {
                 throw new IllegalStateException("Cannot start the Swing game in a headless environment");
             }
-            SwingUtilities.invokeLater(() -> new ChessGameWindow().show());
+            boolean selfPlay = args[0].equalsIgnoreCase("selfplay");
+            SwingUtilities.invokeLater(() -> new ChessGameWindow(difficulty, selfPlay).show());
             return;
         }
-        if (args.length != 1) {
-            System.err.println("Expected one position JSON file or 'play'. Run with 'help' for usage.");
+        PositionArguments positionArguments;
+        try {
+            positionArguments = parsePositionArguments(args);
+        } catch (IllegalArgumentException exception) {
+            System.err.println(exception.getMessage());
             return;
         }
-        Board board = new PositionJsonReader().read(Path.of(args[0]));
+        System.out.println("Loading position from " + positionArguments.path() + "...");
+        Board board = new PositionJsonReader().read(positionArguments.path());
+        System.out.println("Analyzing White's material, attacked pieces, and mate-in-one...");
         ScoreResult result = new StupidityScorer().score(board);
-        var recommendation = new MoveSelector().leastStupidMove(board);
+        System.out.println("Current position evaluated. Searching for the least-stupid legal move to depth "
+                + positionArguments.depth().searchDepth() + "...");
+        var recommendation = new MoveSelector().leastStupidMove(board,
+                positionArguments.depth().searchDepth(), System.out::println);
 
         System.out.println(new PrintASCII().printSmallerASCII());
         System.out.println("Side to move: " + board.sideToMove());
@@ -50,6 +61,7 @@ public class Main {
         System.out.println();
         if (recommendation.isPresent()) {
             MoveRecommendation choice = recommendation.orElseThrow();
+            System.out.println("Search complete.");
             System.out.println("Legal moves evaluated: " + choice.legalMovesEvaluated());
             System.out.println("Least stupid move: " + choice.move().toUci());
             System.out.println("Resulting Stupidity Score: " + choice.resultingPosition().score());
@@ -66,15 +78,77 @@ public class Main {
         System.out.println("Glass Bishop - Chess Position Evaluator");
         System.out.println();
         System.out.println("Usage:");
-        System.out.println("  java -jar target/GlassBishop-0.1.jar <position.json>");
-        System.out.println("  java -jar target/GlassBishop-0.1.jar play");
-        System.out.println("  java -jar target/GlassBishop-0.1.jar help");
+        System.out.println("  java -jar target/GlassBishop-1.1.0.jar <position.json> [-depth=1..5]");
+        System.out.println("  java -jar target/GlassBishop-1.1.0.jar play [-depth=1..5]");
+        System.out.println("  java -jar target/GlassBishop-1.1.0.jar selfplay [-depth=1..5]");
+        System.out.println("  java -jar target/GlassBishop-1.1.0.jar help");
+        System.out.println();
+        System.out.println("Search depth defaults to 4. Use -depth=1 through -depth=5; deeper searches take longer.");
         System.out.println();
         System.out.println("Examples:");
-        System.out.println("  java -jar target/GlassBishop-0.1.jar examples/starting-position.json");
-        System.out.println("  java -jar target/GlassBishop-0.1.jar examples/white-mate-in-one.json");
+        System.out.println("  java -jar target/GlassBishop-1.1.0.jar examples/starting-position.json");
+        System.out.println("  java -jar target/GlassBishop-1.1.0.jar examples/white-mate-in-one.json");
         System.out.println();
         System.out.println("Evaluates every legal move and recommends the lowest-scoring resulting position.");
         System.out.println("See README.md for JSON format, scoring details, and chess rules.");
+    }
+
+    private static Difficulty parseDepth(String[] args, int startIndex) {
+        if (args.length == startIndex) {
+            return Difficulty.LEVEL_4;
+        }
+        String value = depthValue(args, startIndex);
+        return Difficulty.parse(value);
+    }
+
+    private static PositionArguments parsePositionArguments(String[] args) {
+        Path path = null;
+        Difficulty depth = Difficulty.LEVEL_4;
+        boolean depthSpecified = false;
+        for (int index = 0; index < args.length; index++) {
+            String argument = args[index];
+            if (argument.startsWith("-depth=") || argument.startsWith("--depth=")) {
+                if (depthSpecified) {
+                    throw new IllegalArgumentException("Specify the search depth only once.");
+                }
+                depth = Difficulty.parse(argument.substring(argument.indexOf('=') + 1));
+                depthSpecified = true;
+            } else if (argument.equals("-depth") || argument.equals("--depth")) {
+                if (depthSpecified || index + 1 >= args.length) {
+                    throw new IllegalArgumentException("Usage: <position.json> [-depth=1..5]");
+                }
+                depth = Difficulty.parse(args[++index]);
+                depthSpecified = true;
+            } else if (argument.startsWith("-")) {
+                throw new IllegalArgumentException("Unknown option: " + argument
+                        + ". Use -depth=1..5.");
+            } else if (path == null) {
+                path = Path.of(argument);
+            } else {
+                throw new IllegalArgumentException("Expected one position JSON file and an optional -depth=1..5.");
+            }
+        }
+        if (path == null) {
+            throw new IllegalArgumentException(
+                    "Expected one position JSON file, 'play', or 'selfplay'. Run with 'help' for usage.");
+        }
+        return new PositionArguments(path, depth);
+    }
+
+    private static String depthValue(String[] args, int startIndex) {
+        if (args.length == startIndex + 1) {
+            String argument = args[startIndex];
+            if (argument.startsWith("-depth=") || argument.startsWith("--depth=")) {
+                return argument.substring(argument.indexOf('=') + 1);
+            }
+        } else if (args.length == startIndex + 2
+                && (args[startIndex].equals("-depth") || args[startIndex].equals("--depth"))) {
+            return args[startIndex + 1];
+        }
+        throw new IllegalArgumentException(
+                "Usage: java -jar target/GlassBishop-1.1.0.jar play|selfplay [-depth=1..5]");
+    }
+
+    private record PositionArguments(Path path, Difficulty depth) {
     }
 }

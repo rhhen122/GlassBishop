@@ -158,33 +158,56 @@ The project uses Maven and Java 21. From the project root, build and run the sha
 
 ```sh
 mvn package
-java -jar target/GlassBishop-0.1.jar path/to/position.json
+java -jar target/GlassBishop-1.1.0.jar path/to/position.json
 ```
 
 Run without arguments or pass `help` to display the built-in ASCII-art help menu:
 
 ```sh
-java -jar target/GlassBishop-0.1.jar
-java -jar target/GlassBishop-0.1.jar help
+java -jar target/GlassBishop-1.1.0.jar
+java -jar target/GlassBishop-1.1.0.jar help
 ```
 
 Start the Swing game and play White against the engine as Black:
 
 ```sh
-java -jar target/GlassBishop-0.1.jar play
+java -jar target/GlassBishop-1.1.0.jar play -depth=3
 ```
 
-Click a White piece and then one of its highlighted legal destinations. The board uses Unicode chess glyphs (`♔ ♕ ♖ ♗ ♘ ♙` for White and `♚ ♛ ♜ ♝ ♞ ♟` for Black), highlighted source/destination squares, and a compact dark header. A vertical evaluation bar shows the current position balance (White advantage grows from the bottom; Black advantage grows from the top), with a pawn-value estimate beside it. The engine responds after your move; pawn promotions let you choose a piece using its glyph. The board shows a checkmate or stalemate message when the game ends. This mode requires a desktop environment with a graphical display and a font that supports Unicode chess symbols.
+Search depth is optional and defaults to 4. Use `-depth=1` through `-depth=5` (the `--depth=3` spelling is also accepted). The same option controls move search in regular JSON evaluation mode. Higher depths search more plies and usually take longer:
+
+| Depth | Bot search |
+|---|---|
+| `1` | Searches 1 ply |
+| `2` | Searches 2 plies |
+| `3` | Searches 3 plies |
+| `4` | Searches 4 plies |
+| `5` | Searches 5 plies |
+
+The search uses iterative deepening, alpha-beta pruning, capture/promotion move ordering, quiescence search to extend tactical captures and check evasions, and a transposition table to reuse analyzed positions.
+
+Watch the bot play against itself:
+
+```sh
+java -jar target/GlassBishop-1.1.0.jar selfplay -depth=2
+```
+
+Self-play opens the same board UI and automatically alternates moves for both colors, showing the evaluation bar, move log, and live search progress. Higher depths make self-play substantially slower.
+
+Click a White piece and then one of its highlighted legal destinations. The board uses large, outlined Unicode chess glyphs (`♔ ♕ ♖ ♗ ♘ ♙` for White and `♚ ♛ ♜ ♝ ♞ ♟` for Black) to keep pieces distinct from both light and dark squares. A move-history panel records each move in standard algebraic notation, including captures, castling, promotions, check, and checkmate, with move numbers; it scrolls as the game progresses. A vertical evaluation bar shows the current position balance (White advantage grows from the bottom; Black advantage grows from the top), with a pawn-value estimate beside it. The engine responds after your move; pawn promotions let you choose a piece using its glyph. The board shows a checkmate or stalemate message when the game ends. This mode requires a desktop environment with a graphical display and a font that supports Unicode chess symbols.
 
 Run a demo:
 
 ```sh
-java -jar target/GlassBishop-0.1.jar examples/starting-position.json
-java -jar target/GlassBishop-0.1.jar examples/white-piece-attacked.json
-java -jar target/GlassBishop-0.1.jar examples/white-mate-in-one.json
+java -jar target/GlassBishop-1.1.0.jar examples/starting-position.json -depth=3
+java -jar target/GlassBishop-1.1.0.jar examples/starting-position.json
+java -jar target/GlassBishop-1.1.0.jar examples/white-piece-attacked.json
+java -jar target/GlassBishop-1.1.0.jar examples/white-mate-in-one.json
 ```
 
-The CLI accepts no arguments or the single argument `help` to print the help menu, `play` to open the Swing game, or one JSON file path to analyze a position. For a JSON position, it prints an ASCII board (ranks 8 to 1 from top to bottom, files a to h from left to right). White pieces are uppercase (`P N B R Q K`), Black pieces are lowercase (`p n b r q k`), and `.` marks an empty square. It then prints the current position's White material, attacked White material, mate-in-one status, score, and rating. If legal moves exist, it also prints how many it evaluated and the recommended move in coordinate notation (for example `e2e4` or `a7a8q`), plus the resulting score and rating. If the side to move has no legal moves, it reports checkmate or stalemate instead. Invalid argument combinations, unreadable/invalid JSON, or invalid position metadata are reported rather than producing an evaluation.
+The CLI accepts no arguments or the single argument `help` to print the help menu, `play` to open the human-versus-engine Swing game, `selfplay` to watch two engine sides play, or one JSON file path to analyze a position. All three operating modes accept the optional `-depth=1..5` search option. In JSON analysis, depth 1 preserves the original one-ply selection; larger depths search further legal continuations and rank candidates using the existing Stupidity Score, without changing its formula. During analysis it prints status updates as it loads the board, calculates the current score, generates legal moves, and searches candidate moves. For a JSON position, it prints an ASCII board (ranks 8 to 1 from top to bottom, files a to h from left to right). White pieces are uppercase (`P N B R Q K`), Black pieces are lowercase (`p n b r q k`), and `.` marks an empty square. It then prints the current position's White material, attacked White material, mate-in-one status, score, and rating. If legal moves exist, it also prints how many it evaluated and the recommended move in coordinate notation (for example `e2e4` or `a7a8q`), plus the resulting score and rating. If the side to move has no legal moves, it reports checkmate or stalemate instead. Invalid argument combinations, unreadable/invalid JSON, or invalid position metadata are reported rather than producing an evaluation.
+
+In Swing play mode the status line reports engine progress: move generation, number of candidates, search depth, the candidate currently being searched, and completion. Updates run while the search is in the background so the window remains responsive.
 
 The analysis command recommends the legal move with the lowest resulting Stupidity Score, not necessarily the strongest chess move. Each candidate is applied to an independent board state, and the unchanged scoring formula is used on that resulting position. When scores tie, the first move in the generator's order is returned.
 
@@ -206,12 +229,15 @@ Each package has one responsibility:
 | `org.GlassBishop.engine.AttackDetector` | Square attack and check detection |
 | `org.GlassBishop.engine.MoveGenerator` | Candidate move generation and legal-move filtering |
 | `org.GlassBishop.engine.PositionAnalyzer` | White material, attacked material, checkmate, and mate-in-one analysis |
-| `org.GlassBishop.engine.MoveSelector` | Scores each legal successor position and chooses the lowest-scoring move |
-| `org.GlassBishop.engine.SmartMoveSelector` | Searches legal continuations with alpha-beta minimax for Swing-game moves |
+| `org.GlassBishop.engine.MoveSelector` | Scores legal continuations to the requested depth and chooses the lowest-scoring move |
+| `org.GlassBishop.engine.SmartMoveSelector` | Searches legal continuations with iterative deepening, alpha-beta minimax, quiescence, move ordering, and a transposition table |
+| `org.GlassBishop.engine.Difficulty` | Defines five numeric search-depth settings |
 | `org.GlassBishop.engine.PositionEvaluator` | Estimates material, piece activity, threats, and terminal checkmate for search and the UI bar |
 | `org.GlassBishop.engine.MoveRecommendation` | Carries the selected move, its resulting score, and number of evaluated legal moves |
-| `org.GlassBishop.engine.ChessGame` | Manages a game against the engine, validating human moves and applying engine replies |
-| `org.GlassBishop.ui.ChessGameWindow` | Swing board interface for a human playing White against the engine |
+| `org.GlassBishop.engine.ChessGame` | Manages game state, validates human moves, and applies engine moves for either color |
+| `org.GlassBishop.engine.ChessNotation` | Formats recorded moves in standard algebraic notation |
+| `org.GlassBishop.ui.ChessGameWindow` | Swing board interface for human-versus-engine and engine-versus-engine play |
+| `org.GlassBishop.ui.ChessPieceButton` | Renders chess glyphs with contrasting outlines for visibility |
 | `org.GlassBishop.ui.EvaluationBar` | Paints a bounded visual representation of White's positional advantage |
 | `org.GlassBishop.scoring.StupidityScorer` | Applies the 0–100 scoring formula |
 | `org.GlassBishop.scoring.StupidityRating` | Maps scores to the existing rating bands |
@@ -223,8 +249,8 @@ Each package has one responsibility:
 ## Scope and limitations
 
 - Evaluation reports White's material, attacked pieces, and mate in one; it does not evaluate Black's material, positional advantage, or initiative.
-- The analysis command examines one ply and chooses by the Stupidity Score. The Swing-game bot searches four plies with alpha-beta minimax, ordering captures and promotions first; its lightweight evaluator considers material, piece placement, attacks, and checkmate. This is stronger than one-ply selection but is not a tournament-grade engine.
-- In the Swing game the human plays White and the bot plays Black, choosing moves to reduce White's positional advantage.
+- The analysis command searches one to five plies using the unchanged Stupidity Score to choose a low-scoring continuation. The Swing-game bot searches one to five plies using alpha-beta minimax, iterative deepening, quiescence search, capture ordering, and a transposition table. Its lightweight evaluator considers material, piece placement, attacks, and checkmate. Neither mode is a tournament-grade engine, and depth five can take considerably longer.
+- In human-versus-engine Swing play, the human plays White and the bot plays Black. Self-play uses the same engine for both colors.
 - The engine does not enforce repetition, the fifty-move rule, insufficient-material draws, move counters, or game history. The supplied board and special-move rights are treated as the complete position.
 - The reader checks basic structural consistency, not every requirement for a historically reachable FIDE position.
 - Because attacked material measures attacked squares rather than likely captures, it should be interpreted as a simple exposure signal, not as a full chess evaluation.

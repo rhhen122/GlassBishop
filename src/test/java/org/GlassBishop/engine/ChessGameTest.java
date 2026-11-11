@@ -34,4 +34,23 @@ class ChessGameTest {
 
         assertThrows(IllegalArgumentException.class, () -> game.playHumanMove(illegalMove));
     }
+
+    @Test
+    void acceptsDifficultyForGameSetup() {
+        ChessGame game = new ChessGame(Difficulty.LEVEL_1);
+
+        assertEquals(20, game.legalMoves().size());
+    }
+
+    @Test
+    void selfPlayCanApplyBotMovesForBothColors() {
+        ChessGame game = new ChessGame(Difficulty.LEVEL_1);
+
+        game.playBotMove();
+        assertEquals(Color.BLACK, game.board().sideToMove());
+        game.playBotMove();
+
+        assertEquals(Color.WHITE, game.board().sideToMove());
+        assertEquals(2, game.moveHistory().size());
+    }
 }

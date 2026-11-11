@@ -1,6 +1,7 @@
 package org.GlassBishop.ui;
 
 import org.GlassBishop.engine.ChessGame;
+import org.GlassBishop.engine.Difficulty;
 import org.GlassBishop.engine.PositionEvaluator;
 import org.GlassBishop.model.Board;
 import org.GlassBishop.model.Color;
@@ -15,8 +16,10 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.SwingConstants;
 import javax.swing.SwingWorker;
+import javax.swing.JTextArea;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -26,6 +29,8 @@ import java.awt.event.WindowEvent;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutionException;
+import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 
 public final class ChessGameWindow {
     private static final java.awt.Color LIGHT_SQUARE = new java.awt.Color(238, 238, 210);
@@ -34,17 +39,33 @@ public final class ChessGameWindow {
     private static final java.awt.Color LEGAL_DESTINATION = new java.awt.Color(130, 180, 110);
     private static final java.awt.Color APP_BACKGROUND = new java.awt.Color(36, 41, 46);
 
-    private final ChessGame game = new ChessGame();
-    private final JButton[][] squares = new JButton[8][8];
+    private final Difficulty difficulty;
+    private final ChessGame game;
+    private final ChessPieceButton[][] squares = new ChessPieceButton[8][8];
     private final JLabel status = new JLabel("", SwingConstants.LEFT);
     private final JLabel evaluationLabel = new JLabel("", SwingConstants.CENTER);
+    private final JTextArea moveLog = new JTextArea();
     private final EvaluationBar evaluationBar = new EvaluationBar();
     private final PositionEvaluator positionEvaluator = new PositionEvaluator();
     private final JFrame frame = new JFrame("Glass Bishop - Play");
+    private final boolean selfPlay;
+    private final Timer selfPlayTimer = new Timer(700, event -> startBotTurn());
     private Square selectedSquare;
     private boolean engineThinking;
 
     public ChessGameWindow() {
+        this(Difficulty.LEVEL_4, false);
+    }
+
+    public ChessGameWindow(Difficulty difficulty) {
+        this(difficulty, false);
+    }
+
+    public ChessGameWindow(Difficulty difficulty, boolean selfPlay) {
+        this.difficulty = difficulty;
+        this.selfPlay = selfPlay;
+        this.game = new ChessGame(difficulty);
+        selfPlayTimer.setRepeats(false);
         createWindow();
         refreshBoard();
         updateStatus();
@@ -52,6 +73,9 @@ public final class ChessGameWindow {
 
     public void show() {
         frame.setVisible(true);
+        if (selfPlay) {
+            selfPlayTimer.start();
+        }
     }
 
     private void createWindow() {
@@ -77,12 +101,7 @@ public final class ChessGameWindow {
             int rank = 7 - row;
             for (int file = 0; file < 8; file++) {
                 Square square = new Square(file, rank);
-                JButton button = new JButton();
-                button.setPreferredSize(new Dimension(76, 76));
-                button.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 48));
-                button.setFocusPainted(false);
-                button.setOpaque(true);
-                button.setBorderPainted(false);
+                ChessPieceButton button = new ChessPieceButton();
                 button.addActionListener(event -> handleSquareClick(square));
                 squares[file][rank] = button;
                 board.add(button);
@@ -104,7 +123,7 @@ public final class ChessGameWindow {
         evaluationLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
         JPanel evaluationPanel = new JPanel(new BorderLayout(4, 8));
         evaluationPanel.setBackground(APP_BACKGROUND);
-        evaluationPanel.setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 16));
+        evaluationPanel.setBorder(BorderFactory.createEmptyBorder(0, 4, 8, 16));
         evaluationPanel.add(blackLabel, BorderLayout.NORTH);
         evaluationPanel.add(evaluationBar, BorderLayout.CENTER);
         JPanel evaluationBottom = new JPanel(new BorderLayout(2, 4));
@@ -112,7 +131,30 @@ public final class ChessGameWindow {
         evaluationBottom.add(whiteLabel, BorderLayout.NORTH);
         evaluationBottom.add(evaluationLabel, BorderLayout.SOUTH);
         evaluationPanel.add(evaluationBottom, BorderLayout.SOUTH);
-        frame.add(evaluationPanel, BorderLayout.EAST);
+
+        JLabel moveLogTitle = new JLabel("MOVE HISTORY");
+        moveLogTitle.setForeground(java.awt.Color.WHITE);
+        moveLogTitle.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
+        moveLog.setEditable(false);
+        moveLog.setFocusable(false);
+        moveLog.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
+        moveLog.setForeground(new java.awt.Color(232, 236, 239));
+        moveLog.setBackground(new java.awt.Color(47, 53, 59));
+        moveLog.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        JScrollPane historyScroll = new JScrollPane(moveLog);
+        historyScroll.setPreferredSize(new Dimension(190, 190));
+        historyScroll.setBorder(BorderFactory.createLineBorder(new java.awt.Color(70, 77, 84)));
+        JPanel historyPanel = new JPanel(new BorderLayout(4, 6));
+        historyPanel.setBackground(APP_BACKGROUND);
+        historyPanel.add(moveLogTitle, BorderLayout.NORTH);
+        historyPanel.add(historyScroll, BorderLayout.CENTER);
+
+        JPanel sidePanel = new JPanel(new BorderLayout(8, 14));
+        sidePanel.setBackground(APP_BACKGROUND);
+        sidePanel.setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 16));
+        sidePanel.add(evaluationPanel, BorderLayout.NORTH);
+        sidePanel.add(historyPanel, BorderLayout.CENTER);
+        frame.add(sidePanel, BorderLayout.EAST);
 
         JButton newGame = new JButton("New Game");
         newGame.addActionListener(event -> {
@@ -120,7 +162,7 @@ public final class ChessGameWindow {
                 return;
             }
             frame.dispose();
-            new ChessGameWindow().show();
+            new ChessGameWindow(difficulty, selfPlay).show();
         });
         newGame.setFocusPainted(false);
         JPanel controls = new JPanel(new BorderLayout());
@@ -141,7 +183,7 @@ public final class ChessGameWindow {
     }
 
     private void handleSquareClick(Square square) {
-        if (engineThinking || game.board().sideToMove() != Color.WHITE
+        if (selfPlay || engineThinking || game.board().sideToMove() != Color.WHITE
                 || game.legalMoves().isEmpty()) {
             return;
         }
@@ -185,7 +227,7 @@ public final class ChessGameWindow {
             updateStatus();
             return;
         }
-        startEngineTurn();
+        startBotTurn();
     }
 
     private void selectWhitePiece(Square square, Piece piece) {
@@ -220,14 +262,15 @@ public final class ChessGameWindow {
         return candidates.stream().filter(move -> move.promotion() == selectedType).findFirst().orElseThrow();
     }
 
-    private void startEngineTurn() {
+    private void startBotTurn() {
         engineThinking = true;
-        updateStatus();
+        status.setText(selfPlay ? "Self-play: bot is thinking..." : "Starting engine search...");
         refreshBoard();
         new SwingWorker<Move, Void>() {
             @Override
             protected Move doInBackground() {
-                return game.playEngineMove();
+                return game.playBotMove(message ->
+                        SwingUtilities.invokeLater(() -> status.setText(message)));
             }
 
             @Override
@@ -237,6 +280,9 @@ public final class ChessGameWindow {
                     get();
                     refreshBoard();
                     updateStatus();
+                    if (selfPlay && !game.legalMoves().isEmpty()) {
+                        selfPlayTimer.start();
+                    }
                 } catch (InterruptedException exception) {
                     Thread.currentThread().interrupt();
                     status.setText("Engine move was interrupted.");
@@ -259,11 +305,10 @@ public final class ChessGameWindow {
         for (int file = 0; file < 8; file++) {
             for (int rank = 0; rank < 8; rank++) {
                 Square square = new Square(file, rank);
-                JButton button = squares[file][rank];
+                ChessPieceButton button = squares[file][rank];
                 Piece piece = position.pieceAt(square);
-                button.setText(piece == null ? "" : pieceSymbol(piece));
-                button.setForeground(piece != null && piece.color() == Color.WHITE
-                        ? new java.awt.Color(35, 38, 42) : java.awt.Color.WHITE);
+                button.setPieceSymbol(piece == null ? "" : pieceSymbol(piece),
+                        piece != null && piece.color() == Color.WHITE);
                 java.awt.Color background = (file + rank) % 2 == 0 ? LIGHT_SQUARE : DARK_SQUARE;
                 if (selectedSquare != null && selectedSquare.equals(square)) {
                     background = SELECTED_SQUARE;
@@ -271,12 +316,14 @@ public final class ChessGameWindow {
                     background = LEGAL_DESTINATION;
                 }
                 button.setBackground(background);
-                button.setEnabled(true);
+                button.setEnabled(!selfPlay);
             }
         }
         int evaluation = positionEvaluator.evaluate(position);
         evaluationBar.setEvaluation(evaluation);
         evaluationLabel.setText(formatEvaluation(evaluation));
+        moveLog.setText(String.join("\n", game.moveHistory()));
+        moveLog.setCaretPosition(moveLog.getDocument().getLength());
     }
 
     private static String formatEvaluation(int evaluation) {
@@ -289,7 +336,7 @@ public final class ChessGameWindow {
 
     private void updateStatus() {
         if (engineThinking) {
-            status.setText("Engine is thinking...");
+            status.setText(selfPlay ? "Self-play: bot is thinking..." : "Engine is thinking...");
             return;
         }
         if (game.legalMoves().isEmpty()) {
@@ -302,9 +349,13 @@ public final class ChessGameWindow {
             }
             return;
         }
-        status.setText(game.board().sideToMove() == Color.WHITE
-                ? "Your turn (White). Select a piece, then a highlighted square."
-                : "Engine's turn (Black).");
+        if (selfPlay) {
+            status.setText("Self-play  •  " + game.board().sideToMove() + " to move  •  " + difficulty);
+        } else {
+            status.setText(game.board().sideToMove() == Color.WHITE
+                    ? "Your turn (White). Select a piece, then a highlighted square.  •  " + difficulty
+                    : "Engine's turn (Black).  •  " + difficulty);
+        }
     }
 
     static String pieceSymbol(Piece piece) {

@@ -10,11 +10,27 @@ import org.GlassBishop.scoring.StupidityScorer;
 import org.junit.jupiter.api.Test;
 
 import java.util.EnumSet;
+import java.util.ArrayList;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MoveSelectorTest {
+    @Test
+    void searchesRegularEvaluationToConfiguredDepth() {
+        Board board = Board.standardStartingPosition();
+        var legalMoves = new MoveGenerator(new AttackDetector()).legalMoves(board, Color.WHITE);
+        var messages = new ArrayList<String>();
+
+        var recommendation = new MoveSelector().leastStupidMove(board, 2, messages::add)
+                .orElseThrow();
+
+        assertTrue(legalMoves.contains(recommendation.move()));
+        assertEquals(20, recommendation.legalMovesEvaluated());
+        assertTrue(messages.stream().anyMatch(message -> message.contains("to depth 2")));
+        assertTrue(messages.getLast().startsWith("Search complete"));
+    }
+
     private final AttackDetector attacks = new AttackDetector();
     private final MoveGenerator moves = new MoveGenerator(attacks);
     private final StupidityScorer scorer = new StupidityScorer();
@@ -45,6 +61,19 @@ class MoveSelectorTest {
                 Square.parse("a7"), Square.parse("a8"), PieceType.KNIGHT, false, false);
 
         assertEquals("a7a8n", move.toUci());
+    }
+
+    @Test
+    void reportsProgressWhileEvaluatingLegalMoves() {
+        Board board = board(Color.WHITE,
+                at("e1", Color.WHITE, PieceType.KING),
+                at("e8", Color.BLACK, PieceType.KING));
+        var messages = new ArrayList<String>();
+
+        new MoveSelector().leastStupidMove(board, messages::add);
+
+        assertTrue(messages.getFirst().contains("legal moves"));
+        assertTrue(messages.stream().anyMatch(message -> message.contains("Scoring move 1/")));
     }
 
     private static Board board(Color sideToMove, At... pieces) {

@@ -1,14 +1,15 @@
-<img src=".github/GlassBishopLogo.png" alt="Glass Bishop Logo" width="200" style="display: block; margin: 0 auto; padding: 10px;"/>
-
-<h1 align="center">Glass Bishop <img src=".github/Bishop.webp" width="30"/></h1>
-<h2 align="center">The Glass Cannon of Chess Engines</h2>
-<p align="center">A positional evaluation engine for chess</p>
-
-
 <div align="center">
 
-[![forthebadge](https://forthebadge.com/badges/made-with-java.svg)](https://forthebadge.com)
-[![forthebadge](https://forthebadge.com/badges/contains-tasty-spaghetti-code.svg)](https://forthebadge.com)
+<img src=".github/GlassBishopLogo.png" alt="Glass Bishop logo" width="200">
+
+# Glass Bishop <img src=".github/Bishop.webp" alt="Bishop" width="30">
+
+### The Glass Cannon of Chess Engines
+
+A positional evaluation engine for chess.
+
+[![Made with Java](https://forthebadge.com/badges/made-with-java.svg)](https://forthebadge.com)
+[![Contains Tasty Spaghetti Code](https://forthebadge.com/badges/contains-tasty-spaghetti-code.svg)](https://forthebadge.com)
 
 </div>
 

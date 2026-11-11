@@ -1,9 +1,11 @@
 package org.GlassBishop;
 
 import org.GlassBishop.engine.MoveRecommendation;
-import org.GlassBishop.engine.MoveSelector;
+import org.GlassBishop.engine.MoveGenerator;
+import org.GlassBishop.engine.AttackDetector;
 import org.GlassBishop.engine.PositionAnalyzer;
 import org.GlassBishop.engine.Difficulty;
+import org.GlassBishop.engine.SmartMoveSelector;
 import org.GlassBishop.io.PositionJsonReader;
 import org.GlassBishop.model.Board;
 import org.GlassBishop.scoring.ScoreResult;
@@ -43,10 +45,13 @@ public class Main {
         Board board = new PositionJsonReader().read(positionArguments.path());
         System.out.println("Analyzing White's material, attacked pieces, and mate-in-one...");
         ScoreResult result = new StupidityScorer().score(board);
-        System.out.println("Current position evaluated. Searching for the least-stupid legal move to depth "
+        System.out.println("Current position evaluated. Searching for the strongest legal move to depth "
                 + positionArguments.depth().searchDepth() + "...");
-        var recommendation = new MoveSelector().leastStupidMove(board,
-                positionArguments.depth().searchDepth(), System.out::println);
+        var bestMove = new SmartMoveSelector(positionArguments.depth()).bestMove(board, System.out::println);
+        int legalMoveCount = new MoveGenerator(new AttackDetector())
+                .legalMoves(board, board.sideToMove()).size();
+        var recommendation = bestMove.map(move -> new MoveRecommendation(move,
+                new StupidityScorer().score(board.apply(move)), legalMoveCount));
 
         System.out.println(new PrintASCII().printSmallerASCII());
         System.out.println("Side to move: " + board.sideToMove());
@@ -63,7 +68,7 @@ public class Main {
             MoveRecommendation choice = recommendation.orElseThrow();
             System.out.println("Search complete.");
             System.out.println("Legal moves evaluated: " + choice.legalMovesEvaluated());
-            System.out.println("Least stupid move: " + choice.move().toUci());
+            System.out.println("Recommended move: " + choice.move().toUci());
             System.out.println("Resulting Stupidity Score: " + choice.resultingPosition().score());
             System.out.println("Resulting Stupidity Rating: " + choice.resultingPosition().rating());
         } else if (new PositionAnalyzer().isCheckmate(board, board.sideToMove())) {
@@ -89,7 +94,7 @@ public class Main {
         System.out.println("  java -jar target/GlassBishop-1.1.0.jar examples/starting-position.json");
         System.out.println("  java -jar target/GlassBishop-1.1.0.jar examples/white-mate-in-one.json");
         System.out.println();
-        System.out.println("Evaluates every legal move and recommends the lowest-scoring resulting position.");
+        System.out.println("Uses the play-mode search to recommend a move; reports the Stupidity Score separately.");
         System.out.println("See README.md for JSON format, scoring details, and chess rules.");
     }
 

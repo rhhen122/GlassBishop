@@ -21,14 +21,21 @@ public final class SmartMoveSelector {
     private static final int INFINITY = 1_000_000;
     private static final int MAX_QUIESCENCE_PLY = 5;
 
-    private final Difficulty difficulty;
+    private final int searchDepth;
     private final AttackDetector attacks = new AttackDetector();
     private final MoveGenerator moveGenerator = new MoveGenerator(attacks);
     private final PositionEvaluator evaluator = new PositionEvaluator();
     private final Map<String, TranspositionEntry> transpositions = new HashMap<>();
 
     public SmartMoveSelector(Difficulty difficulty) {
-        this.difficulty = difficulty;
+        this(difficulty.searchDepth());
+    }
+
+    public SmartMoveSelector(int searchDepth) {
+        if (searchDepth < 1) {
+            throw new IllegalArgumentException("Search depth must be a positive integer.");
+        }
+        this.searchDepth = searchDepth;
     }
 
     public Optional<Move> bestMove(Board board) {
@@ -45,12 +52,15 @@ public final class SmartMoveSelector {
         }
         progress.accept("Considering " + legalMoves.size() + " legal moves...");
         Move bestMove = legalMoves.getFirst();
-        for (int depth = 1; depth <= difficulty.searchDepth(); depth++) {
-            progress.accept("Searching depth " + depth + "/" + difficulty.searchDepth() + "...");
+        for (int depth = 1; ; depth++) {
+            progress.accept("Searching depth " + depth + "/" + searchDepth + "...");
             List<Move> iterationMoves = orderedMoves(board, moveGenerator.legalMoves(board, board.sideToMove()));
             Move preferredMove = bestMove;
             iterationMoves.sort(Comparator.comparing((Move move) -> !move.equals(preferredMove)));
             bestMove = searchRoot(board, iterationMoves, depth, progress);
+            if (depth == searchDepth) {
+                break;
+            }
         }
         progress.accept("Search complete. Best move: " + bestMove.toUci());
         return Optional.of(bestMove);

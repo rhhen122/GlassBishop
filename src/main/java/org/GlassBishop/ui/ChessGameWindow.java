@@ -39,7 +39,7 @@ public final class ChessGameWindow {
     private static final java.awt.Color LEGAL_DESTINATION = new java.awt.Color(130, 180, 110);
     private static final java.awt.Color APP_BACKGROUND = new java.awt.Color(36, 41, 46);
 
-    private final Difficulty difficulty;
+    private final int searchDepth;
     private final ChessGame game;
     private final ChessPieceButton[][] squares = new ChessPieceButton[8][8];
     private final JLabel status = new JLabel("", SwingConstants.LEFT);
@@ -54,17 +54,21 @@ public final class ChessGameWindow {
     private boolean engineThinking;
 
     public ChessGameWindow() {
-        this(Difficulty.LEVEL_4, false);
+        this(Difficulty.LEVEL_4.searchDepth(), false);
     }
 
     public ChessGameWindow(Difficulty difficulty) {
-        this(difficulty, false);
+        this(difficulty.searchDepth(), false);
     }
 
     public ChessGameWindow(Difficulty difficulty, boolean selfPlay) {
-        this.difficulty = difficulty;
+        this(difficulty.searchDepth(), selfPlay);
+    }
+
+    public ChessGameWindow(int searchDepth, boolean selfPlay) {
+        this.searchDepth = searchDepth;
         this.selfPlay = selfPlay;
-        this.game = new ChessGame(difficulty);
+        this.game = new ChessGame(searchDepth);
         selfPlayTimer.setRepeats(false);
         createWindow();
         refreshBoard();
@@ -162,7 +166,7 @@ public final class ChessGameWindow {
                 return;
             }
             frame.dispose();
-            new ChessGameWindow(difficulty, selfPlay).show();
+            new ChessGameWindow(searchDepth, selfPlay).show();
         });
         newGame.setFocusPainted(false);
         JPanel controls = new JPanel(new BorderLayout());
@@ -350,11 +354,11 @@ public final class ChessGameWindow {
             return;
         }
         if (selfPlay) {
-            status.setText("Self-play  •  " + game.board().sideToMove() + " to move  •  " + difficulty);
+            status.setText("Self-play  •  " + game.board().sideToMove() + " to move  •  depth " + searchDepth);
         } else {
             status.setText(game.board().sideToMove() == Color.WHITE
-                    ? "Your turn (White). Select a piece, then a highlighted square.  •  " + difficulty
-                    : "Engine's turn (Black).  •  " + difficulty);
+                    ? "Your turn (White). Select a piece, then a highlighted square.  •  depth " + searchDepth
+                    : "Engine's turn (Black).  •  depth " + searchDepth);
         }
     }
 

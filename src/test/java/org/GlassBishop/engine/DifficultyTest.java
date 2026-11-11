@@ -1,8 +1,11 @@
 package org.GlassBishop.engine;
 
 import org.GlassBishop.model.Board;
+import org.GlassBishop.model.CastlingRight;
 import org.GlassBishop.model.Color;
 import org.GlassBishop.model.Move;
+import org.GlassBishop.model.Piece;
+import org.GlassBishop.model.PieceType;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -41,6 +44,27 @@ class DifficultyTest {
     @Test
     void rejectsUnknownDifficulty() {
         assertThrows(IllegalArgumentException.class, () -> Difficulty.parse("6"));
+    }
+
+    @Test
+    void acceptsSearchDepthAboveFive() {
+        Piece[][] squares = new Piece[8][8];
+        squares[0][0] = new Piece(Color.WHITE, PieceType.KING);
+        squares[7][7] = new Piece(Color.BLACK, PieceType.KING);
+        Board sparseBoard = new Board(squares, Color.WHITE,
+                java.util.EnumSet.noneOf(CastlingRight.class), null);
+        var messages = new ArrayList<String>();
+
+        var move = new SmartMoveSelector(6).bestMove(sparseBoard, messages::add).orElseThrow();
+
+        assertTrue(new MoveGenerator(new AttackDetector()).legalMoves(sparseBoard, Color.WHITE)
+                .contains(move));
+        assertTrue(messages.stream().anyMatch(message -> message.equals("Searching depth 6/6...")));
+    }
+
+    @Test
+    void rejectsNonPositiveSearchDepth() {
+        assertThrows(IllegalArgumentException.class, () -> new SmartMoveSelector(0));
     }
 
     @Test

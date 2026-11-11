@@ -16,11 +16,15 @@ public final class ChessGame {
     private Board board = Board.standardStartingPosition();
 
     public ChessGame() {
-        this(Difficulty.LEVEL_4);
+        this(Difficulty.LEVEL_4.searchDepth());
     }
 
     public ChessGame(Difficulty difficulty) {
-        moveSelector = new SmartMoveSelector(difficulty);
+        this(difficulty.searchDepth());
+    }
+
+    public ChessGame(int searchDepth) {
+        moveSelector = new SmartMoveSelector(searchDepth);
     }
 
     public Board board() {

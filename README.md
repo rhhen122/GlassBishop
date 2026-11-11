@@ -174,7 +174,7 @@ Start the Swing game and play White against the engine as Black:
 java -jar target/GlassBishop-1.1.0.jar play -depth=3
 ```
 
-Search depth is optional and defaults to 4. Use `-depth=1` through `-depth=5` (the `--depth=3` spelling is also accepted). The same option controls move search in regular JSON evaluation mode. Higher depths search more plies and usually take longer:
+Search depth is optional and defaults to 4. Use any positive integer with `-depth` (the `--depth=3` spelling is also accepted). The same option controls move search in regular JSON evaluation mode. The value is not capped at 5. Higher depths search more plies and can take dramatically longer:
 
 | Depth | Bot search |
 |---|---|
@@ -183,6 +183,7 @@ Search depth is optional and defaults to 4. Use `-depth=1` through `-depth=5` (t
 | `3` | Searches 3 plies |
 | `4` | Searches 4 plies |
 | `5` | Searches 5 plies |
+| `6` and above | Searches the specified number of plies |
 
 The search uses iterative deepening, alpha-beta pruning, capture/promotion move ordering, quiescence search to extend tactical captures and check evasions, and a transposition table to reuse analyzed positions.
 
@@ -205,7 +206,7 @@ java -jar target/GlassBishop-1.1.0.jar examples/white-piece-attacked.json
 java -jar target/GlassBishop-1.1.0.jar examples/white-mate-in-one.json
 ```
 
-The CLI accepts no arguments or the single argument `help` to print the help menu, `play` to open the human-versus-engine Swing game, `selfplay` to watch two engine sides play, or one JSON file path to analyze a position. All three operating modes accept the optional `-depth=1..5` search option. JSON analysis uses the same search and chess position evaluator as the game bot, so the same board, side to move, and depth produce the same recommended move. The existing White-centric Stupidity Score and its formula are still reported separately and are not used to select the move. During analysis it prints status updates as it loads the board, calculates the current score, generates legal moves, and searches candidate moves. For a JSON position, it prints an ASCII board (ranks 8 to 1 from top to bottom, files a to h from left to right). White pieces are uppercase (`P N B R Q K`), Black pieces are lowercase (`p n b r q k`), and `.` marks an empty square. It then prints the current position's White material, attacked White material, mate-in-one status, score, and rating. If legal moves exist, it also prints how many it evaluated and the recommended move in coordinate notation (for example `e2e4` or `a7a8q`), plus the resulting Stupidity Score and rating. If the side to move has no legal moves, it reports checkmate or stalemate instead. Invalid argument combinations, unreadable/invalid JSON, or invalid position metadata are reported rather than producing an evaluation.
+The CLI accepts no arguments or the single argument `help` to print the help menu, `play` to open the human-versus-engine Swing game, `selfplay` to watch two engine sides play, or one JSON file path to analyze a position. All three operating modes accept the optional `-depth=<positive integer>` search option. JSON analysis uses the same search and chess position evaluator as the game bot, so the same board, side to move, and depth produce the same recommended move. The existing White-centric Stupidity Score and its formula are still reported separately and are not used to select the move. During analysis it prints status updates as it loads the board, calculates the current score, generates legal moves, and searches candidate moves. For a JSON position, it prints an ASCII board (ranks 8 to 1 from top to bottom, files a to h from left to right). White pieces are uppercase (`P N B R Q K`), Black pieces are lowercase (`p n b r q k`), and `.` marks an empty square. It then prints the current position's White material, attacked White material, mate-in-one status, score, and rating. If legal moves exist, it also prints how many it evaluated and the recommended move in coordinate notation (for example `e2e4` or `a7a8q`), plus the resulting Stupidity Score and rating. If the side to move has no legal moves, it reports checkmate or stalemate instead. Invalid argument combinations, unreadable/invalid JSON, or invalid position metadata are reported rather than producing an evaluation.
 
 In Swing play mode the status line reports engine progress: move generation, number of candidates, search depth, the candidate currently being searched, and completion. Updates run while the search is in the background so the window remains responsive.
 
@@ -231,7 +232,7 @@ Each package has one responsibility:
 | `org.GlassBishop.engine.PositionAnalyzer` | White material, attacked material, checkmate, and mate-in-one analysis |
 | `org.GlassBishop.engine.MoveSelector` | Provides one-ply selection using the Stupidity Score |
 | `org.GlassBishop.engine.SmartMoveSelector` | Searches legal continuations with iterative deepening, alpha-beta minimax, quiescence, move ordering, and a transposition table |
-| `org.GlassBishop.engine.Difficulty` | Defines five numeric search-depth settings |
+| `org.GlassBishop.engine.Difficulty` | Provides legacy presets for numeric search depths |
 | `org.GlassBishop.engine.PositionEvaluator` | Estimates material, piece activity, threats, and terminal checkmate for search and the UI bar |
 | `org.GlassBishop.engine.MoveRecommendation` | Carries the selected move, its resulting score, and number of evaluated legal moves |
 | `org.GlassBishop.engine.ChessGame` | Manages game state, validates human moves, and applies engine moves for either color |
@@ -249,7 +250,7 @@ Each package has one responsibility:
 ## Scope and limitations
 
 - Evaluation reports White's material, attacked pieces, and mate in one; it does not evaluate Black's material, positional advantage, or initiative.
-- JSON analysis and the Swing-game bot search one to five plies using alpha-beta minimax, iterative deepening, quiescence search, capture ordering, and a transposition table. Both use the same lightweight evaluator for move selection, considering material, piece placement, attacks, and checkmate. The Stupidity Score is still calculated and displayed for analysis but remains separate from move selection. The engine is not tournament-grade, and depth five can take considerably longer.
+- JSON analysis and the Swing-game bot search to the requested positive integer depth using alpha-beta minimax, iterative deepening, quiescence search, capture ordering, and a transposition table. Both use the same lightweight evaluator for move selection, considering material, piece placement, attacks, and checkmate. The Stupidity Score is still calculated and displayed for analysis but remains separate from move selection. There is no configured depth cap, but search cost grows rapidly; large values may take impractically long or exhaust available stack/memory. The engine is not tournament-grade.
 - In human-versus-engine Swing play, the human plays White and the bot plays Black. Self-play uses the same engine for both colors.
 - The engine does not enforce repetition, the fifty-move rule, insufficient-material draws, move counters, or game history. The supplied board and special-move rights are treated as the complete position.
 - The reader checks basic structural consistency, not every requirement for a historically reachable FIDE position.

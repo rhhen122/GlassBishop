@@ -67,4 +67,25 @@ class ChessGameTest {
         assertEquals(List.of("e2e4"), game.uciMoveHistory());
         assertEquals(Color.BLACK, game.board().sideToMove());
     }
+
+    @Test
+    void humanCanPlayBlackAfterTheEngineMovesWhite() {
+        ChessGame game = new ChessGame(Difficulty.LEVEL_1);
+        game.playBotMove();
+        assertEquals(Color.BLACK, game.board().sideToMove());
+
+        var blackMove = game.legalMoves().getFirst();
+        game.playHumanMove(blackMove, Color.BLACK);
+        assertEquals(Color.WHITE, game.board().sideToMove());
+        assertEquals(2, game.moveHistory().size());
+    }
+
+    @Test
+    void rejectsHumanMoveWhenItIsTheOpponentsTurn() {
+        ChessGame game = new ChessGame(Difficulty.LEVEL_1);
+        var whiteMove = game.legalMoves().getFirst();
+
+        assertThrows(IllegalStateException.class,
+                () -> game.playHumanMove(whiteMove, Color.BLACK));
+    }
 }

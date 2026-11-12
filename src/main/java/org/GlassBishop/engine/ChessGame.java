@@ -49,7 +49,11 @@ public final class ChessGame {
     }
 
     public Move playHumanMove(Move move) {
-        if (board.sideToMove() != Color.WHITE) {
+        return playHumanMove(move, Color.WHITE);
+    }
+
+    public Move playHumanMove(Move move, Color humanColor) {
+        if (board.sideToMove() != humanColor) {
             throw new IllegalStateException("It is not the human player's turn");
         }
         return playLegalMove(move);

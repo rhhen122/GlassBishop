@@ -10,6 +10,7 @@ import org.GlassBishop.engine.StockfishEngine;
 import org.GlassBishop.io.PositionJsonReader;
 import org.GlassBishop.io.PositionJsonWriter;
 import org.GlassBishop.model.Board;
+import org.GlassBishop.model.Color;
 import org.GlassBishop.scoring.ScoreResult;
 import org.GlassBishop.scoring.StupidityScorer;
 import org.GlassBishop.ui.ChessGameWindow;
@@ -36,9 +37,10 @@ public class Main {
             return;
         }
         if (args[0].equalsIgnoreCase("play") || args[0].equalsIgnoreCase("selfplay")) {
-            int searchDepth;
+            boolean selfPlay = args[0].equalsIgnoreCase("selfplay");
+            PlayArguments playArguments;
             try {
-                searchDepth = parseDepth(args, 1);
+                playArguments = parsePlayArguments(args, !selfPlay);
             } catch (IllegalArgumentException exception) {
                 System.err.println(exception.getMessage());
                 return;
@@ -46,8 +48,8 @@ public class Main {
             if (GraphicsEnvironment.isHeadless()) {
                 throw new IllegalStateException("Cannot start the Swing game in a headless environment");
             }
-            boolean selfPlay = args[0].equalsIgnoreCase("selfplay");
-            SwingUtilities.invokeLater(() -> new ChessGameWindow(searchDepth, selfPlay).show());
+            SwingUtilities.invokeLater(() -> new ChessGameWindow(
+                    playArguments.depth(), selfPlay, playArguments.humanColor()).show());
             return;
         }
         PositionArguments positionArguments;
@@ -100,7 +102,7 @@ public class Main {
         System.out.println();
         System.out.println("Usage:");
         System.out.println("  java -jar target/GlassBishop-X.X.X.jar <position.json> [-depth=<positive integer>]");
-        System.out.println("  java -jar target/GlassBishop-X.X.X.jar play [-depth=<positive integer>]");
+        System.out.println("  java -jar target/GlassBishop-X.X.X.jar play [-depth=<positive integer>] [-color=white|black]");
         System.out.println("  java -jar target/GlassBishop-X.X.X.jar selfplay [-depth=<positive integer>]");
         System.out.println("  java -jar target/GlassBishop-X.X.X.jar convert <output.json> [uci-move ...]");
         System.out.println("  java -jar target/GlassBishop-X.X.X.jar stockfish <binary> [-depth=<positive integer>]");
@@ -111,6 +113,7 @@ public class Main {
         System.out.println("Examples:");
         System.out.println("  java -jar target/GlassBishop-X.X.X.jar examples/starting-position.json");
         System.out.println("  java -jar target/GlassBishop-X.X.X.jar examples/white-mate-in-one.json");
+        System.out.println("  java -jar target/GlassBishop-X.X.X.jar play -color=black");
         System.out.println("  java -jar target/GlassBishop-X.X.X.jar convert game.json e2e4 e7e5 g1f3");
         System.out.println("  java -jar target/GlassBishop-X.X.X.jar stockfish /path/to/stockfish -depth=3");
         System.out.println();
@@ -164,6 +167,64 @@ public class Main {
         return parsePositiveDepth(value);
     }
 
+    private static PlayArguments parsePlayArguments(String[] args, boolean allowColor) {
+        int depth = 4;
+        boolean depthSpecified = false;
+        Color humanColor = Color.WHITE;
+        boolean colorSpecified = false;
+        for (int index = 1; index < args.length; index++) {
+            String argument = args[index];
+            if (argument.startsWith("-depth=") || argument.startsWith("--depth=")) {
+                if (depthSpecified) {
+                    throw new IllegalArgumentException("Specify the search depth only once.");
+                }
+                depth = parsePositiveDepth(argument.substring(argument.indexOf('=') + 1));
+                depthSpecified = true;
+            } else if (argument.equals("-depth") || argument.equals("--depth")) {
+                if (depthSpecified || index + 1 >= args.length) {
+                    throw new IllegalArgumentException(playUsage());
+                }
+                depth = parsePositiveDepth(args[++index]);
+                depthSpecified = true;
+            } else if (argument.startsWith("-color=") || argument.startsWith("--color=")) {
+                if (!allowColor) {
+                    throw new IllegalArgumentException("The -color option is only available in play mode.");
+                }
+                if (colorSpecified) {
+                    throw new IllegalArgumentException("Specify the player color only once.");
+                }
+                humanColor = parsePlayerColor(argument.substring(argument.indexOf('=') + 1));
+                colorSpecified = true;
+            } else if (argument.equals("-color") || argument.equals("--color")) {
+                if (!allowColor) {
+                    throw new IllegalArgumentException("The -color option is only available in play mode.");
+                }
+                if (colorSpecified || index + 1 >= args.length) {
+                    throw new IllegalArgumentException(playUsage());
+                }
+                humanColor = parsePlayerColor(args[++index]);
+                colorSpecified = true;
+            } else {
+                throw new IllegalArgumentException("Unknown play option: " + argument
+                        + ". " + playUsage());
+            }
+        }
+        return new PlayArguments(depth, humanColor);
+    }
+
+    private static Color parsePlayerColor(String value) {
+        return switch (value.toLowerCase(java.util.Locale.ROOT)) {
+            case "white" -> Color.WHITE;
+            case "black" -> Color.BLACK;
+            default -> throw new IllegalArgumentException(
+                    "Invalid player color '" + value + "'. Choose white or black.");
+        };
+    }
+
+    private static String playUsage() {
+        return "Usage: play [-depth=<positive integer>] [-color=white|black]";
+    }
+
     private static PositionArguments parsePositionArguments(String[] args) {
         Path path = null;
         int depth = 4;
@@ -211,7 +272,7 @@ public class Main {
             return args[startIndex + 1];
         }
         throw new IllegalArgumentException(
-                "Usage: java -jar target/GlassBishop-X.X.X.jar play|selfplay [-depth=<positive integer>]");
+                "Usage: stockfish <binary> [-depth=<positive integer>]");
     }
 
     private static int parsePositiveDepth(String value) {
@@ -228,5 +289,8 @@ public class Main {
     }
 
     private record PositionArguments(Path path, int depth) {
+    }
+
+    private record PlayArguments(int depth, Color humanColor) {
     }
 }

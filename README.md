@@ -174,6 +174,13 @@ Start the Swing game and play White against the engine as Black:
 java -jar target/GlassBishop-X.X.X.jar play -depth=3
 ```
 
+Choose either side for the human player with `-color=white` or `-color=black` (defaults to White). When playing Black, Glass Bishop makes the opening White move automatically:
+
+```sh
+java -jar target/GlassBishop-X.X.X.jar play -color=black
+java -jar target/GlassBishop-X.X.X.jar play -depth=3 -color=white
+```
+
 Convert a sequence of legal UCI moves from the standard starting position into a JSON position:
 
 ```sh
@@ -272,7 +279,7 @@ Each package has one responsibility:
 
 - Evaluation reports White's material, attacked pieces, and mate in one; it does not evaluate Black's material, positional advantage, or initiative.
 - JSON analysis and the Swing-game bot search to the requested positive integer depth using alpha-beta minimax, iterative deepening, quiescence search, capture ordering, and a transposition table. Both use the same lightweight evaluator for move selection, considering material, piece placement, attacks, and checkmate. The Stupidity Score is still calculated and displayed for analysis but remains separate from move selection. There is no configured depth cap, but search cost grows rapidly; large values may take impractically long or exhaust available stack/memory. The engine is not tournament-grade.
-- In human-versus-engine Swing play, the human plays White and the bot plays Black. Self-play uses the same engine for both colors.
+- In human-versus-engine Swing play, the human can choose either color with `-color`; if they choose Black, the engine opens as White. Self-play uses the same engine for both colors.
 - The engine does not enforce repetition, the fifty-move rule, insufficient-material draws, move counters, or game history. The supplied board and special-move rights are treated as the complete position.
 - The reader checks basic structural consistency, not every requirement for a historically reachable FIDE position.
 - Because attacked material measures attacked squares rather than likely captures, it should be interpreted as a simple exposure signal, not as a full chess evaluation.

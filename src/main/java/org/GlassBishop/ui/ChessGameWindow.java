@@ -51,6 +51,7 @@ public final class ChessGameWindow {
     private final JFrame frame = new JFrame("Glass Bishop - Play");
     private final boolean selfPlay;
     private final StockfishEngine stockfish;
+    private final Color humanColor;
     private final Timer selfPlayTimer = new Timer(700, event -> startBotTurn());
     private Square selectedSquare;
     private boolean engineThinking;
@@ -69,17 +70,23 @@ public final class ChessGameWindow {
     }
 
     public ChessGameWindow(int searchDepth, boolean selfPlay) {
-        this(searchDepth, selfPlay, null);
+        this(searchDepth, selfPlay, Color.WHITE, null);
+    }
+
+    public ChessGameWindow(int searchDepth, boolean selfPlay, Color humanColor) {
+        this(searchDepth, selfPlay, humanColor, null);
     }
 
     public ChessGameWindow(int searchDepth, StockfishEngine stockfish) {
-        this(searchDepth, false, stockfish);
+        this(searchDepth, false, Color.WHITE, stockfish);
     }
 
-    private ChessGameWindow(int searchDepth, boolean selfPlay, StockfishEngine stockfish) {
+    private ChessGameWindow(int searchDepth, boolean selfPlay, Color humanColor,
+                            StockfishEngine stockfish) {
         this.searchDepth = searchDepth;
         this.selfPlay = selfPlay;
         this.stockfish = stockfish;
+        this.humanColor = humanColor;
         this.game = new ChessGame(searchDepth);
         selfPlayTimer.setRepeats(false);
         createWindow();
@@ -91,6 +98,8 @@ public final class ChessGameWindow {
         frame.setVisible(true);
         if (isAutomatedGame()) {
             selfPlayTimer.start();
+        } else if (game.board().sideToMove() != humanColor) {
+            startBotTurn();
         }
     }
 
@@ -180,7 +189,7 @@ public final class ChessGameWindow {
             handingOffToNewGame = stockfish != null;
             frame.dispose();
             if (stockfish == null) {
-                new ChessGameWindow(searchDepth, selfPlay).show();
+                new ChessGameWindow(searchDepth, selfPlay, humanColor).show();
             } else {
                 new ChessGameWindow(searchDepth, stockfish).show();
             }
@@ -212,13 +221,13 @@ public final class ChessGameWindow {
     }
 
     private void handleSquareClick(Square square) {
-        if (isAutomatedGame() || engineThinking || game.board().sideToMove() != Color.WHITE
+        if (isAutomatedGame() || engineThinking || game.board().sideToMove() != humanColor
                 || game.legalMoves().isEmpty()) {
             return;
         }
         Piece clicked = game.board().pieceAt(square);
         if (selectedSquare == null) {
-            selectWhitePiece(square, clicked);
+            selectHumanPiece(square, clicked);
             return;
         }
         if (selectedSquare.equals(square)) {
@@ -227,8 +236,8 @@ public final class ChessGameWindow {
             updateStatus();
             return;
         }
-        if (clicked != null && clicked.color() == Color.WHITE) {
-            selectWhitePiece(square, clicked);
+        if (clicked != null && clicked.color() == humanColor) {
+            selectHumanPiece(square, clicked);
             return;
         }
 
@@ -249,7 +258,7 @@ public final class ChessGameWindow {
             return;
         }
 
-        game.playHumanMove(move);
+        game.playHumanMove(move, humanColor);
         selectedSquare = null;
         refreshBoard();
         if (game.legalMoves().isEmpty()) {
@@ -259,8 +268,8 @@ public final class ChessGameWindow {
         startBotTurn();
     }
 
-    private void selectWhitePiece(Square square, Piece piece) {
-        if (piece == null || piece.color() != Color.WHITE) {
+    private void selectHumanPiece(Square square, Piece piece) {
+        if (piece == null || piece.color() != humanColor) {
             selectedSquare = null;
         } else {
             selectedSquare = square;
@@ -274,7 +283,9 @@ public final class ChessGameWindow {
             return candidates.getFirst();
         }
         PieceType[] choices = {PieceType.QUEEN, PieceType.ROOK, PieceType.BISHOP, PieceType.KNIGHT};
-        String[] symbols = {"♕", "♖", "♗", "♘"};
+        String[] symbols = humanColor == Color.WHITE
+                ? new String[]{"♕", "♖", "♗", "♘"}
+                : new String[]{"♛", "♜", "♝", "♞"};
         int selected = JOptionPane.showOptionDialog(
                 frame,
                 "Choose a promotion piece:",
@@ -387,8 +398,11 @@ public final class ChessGameWindow {
                 if (stockfish != null) {
                     winner = game.board().sideToMove() == Color.WHITE
                             ? "Stockfish wins" : "Glass Bishop wins";
-                } else {
+                } else if (selfPlay) {
                     winner = game.board().sideToMove() == Color.WHITE
+                            ? "Black wins" : "White wins";
+                } else {
+                    winner = game.board().sideToMove() == humanColor
                             ? "Engine wins" : "You win";
                 }
                 status.setText("Checkmate. " + winner + ".");
@@ -403,9 +417,10 @@ public final class ChessGameWindow {
         } else if (selfPlay) {
             status.setText("Self-play  •  " + game.board().sideToMove() + " to move  •  depth " + searchDepth);
         } else {
-            status.setText(game.board().sideToMove() == Color.WHITE
-                    ? "Your turn (White). Select a piece, then a highlighted square.  •  depth " + searchDepth
-                    : "Engine's turn (Black).  •  depth " + searchDepth);
+            status.setText(game.board().sideToMove() == humanColor
+                    ? "Your turn (" + humanColor + "). Select a piece, then a highlighted square.  •  depth "
+                    + searchDepth
+                    : "Engine's turn (" + game.board().sideToMove() + ").  •  depth " + searchDepth);
         }
     }
 

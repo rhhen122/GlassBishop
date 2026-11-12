@@ -1,0 +1,11 @@
+{
+  "sideToMove": "BLACK",
+  "pieces": [
+    { "color": "WHITE", "type": "KING", "square": "a1" },
+    { "color": "WHITE", "type": "PAWN", "square": "e4" },
+    { "color": "BLACK", "type": "KING", "square": "h8" },
+    { "color": "BLACK", "type": "PAWN", "square": "d4" }
+  ],
+  "castlingRights": [],
+  "enPassantTarget": "e3"
+}

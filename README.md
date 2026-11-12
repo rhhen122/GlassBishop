@@ -112,15 +112,21 @@ Valid `castlingRights` entries are `WHITE_KINGSIDE`, `WHITE_QUEENSIDE`, `BLACK_K
 
 ### JSON examples
 
-The repository includes three ready-to-run positions in `examples/`:
+The repository includes ready-to-run positions in `examples/`:
 
 | File | Demonstrates |
 |---|---|
 | `starting-position.json` | The standard initial board and all four castling rights |
 | `white-piece-attacked.json` | A White queen exposed to a Black rook |
 | `white-mate-in-one.json` | A White queen and king position with a legal checkmate in one |
+| `black-tactical-capture.json` | Black to move with a rook able to capture White's queen |
+| `white-en-passant.json` | Black to move with a valid en-passant capture available |
+| `white-castling.json` | White kingside castling with only the king and rook on the board |
+| `white-promotion.json` | White to move with a pawn ready to promote |
 
 Use the starting position JSON as a template. For custom positions, edit the pieces and update the side to move and special-move fields to match the board.
+
+The [`examples/games/`](examples/games/) folder contains complete legal games as UCI move sequences, including Fool's Mate, Scholar's Mate, and Morphy's Opera Game. Its README explains how to convert a sequence into a position JSON file.
 
 ## Chess rules implemented
 
@@ -229,6 +235,10 @@ java -jar target/GlassBishop-X.X.X.jar examples/starting-position.json -simple
 java -jar target/GlassBishop-X.X.X.jar examples/starting-position.json
 java -jar target/GlassBishop-X.X.X.jar examples/white-piece-attacked.json
 java -jar target/GlassBishop-X.X.X.jar examples/white-mate-in-one.json
+java -jar target/GlassBishop-X.X.X.jar examples/black-tactical-capture.json
+java -jar target/GlassBishop-X.X.X.jar examples/white-en-passant.json
+java -jar target/GlassBishop-X.X.X.jar examples/white-castling.json
+java -jar target/GlassBishop-X.X.X.jar examples/white-promotion.json
 ```
 
 The CLI accepts no arguments or the single argument `help` to print the help menu, `play` to open the human-versus-engine Swing game, `selfplay` to watch two Glass Bishop sides play, `stockfish <binary>` to have Glass Bishop play Stockfish, `convert <output.json> [uci-move ...]` to create a JSON position, or one JSON file path to analyze a position. Game modes accept the optional `-depth=<positive integer>` search option. For JSON analysis, `-color=white` or `-color=black` overrides the position's side to move for move selection; for example, use `-color=black` to ask for Black's best move from the supplied board. This is an analysis override, not a played move; changing the side to move clears any en-passant target. Add `-simple` to JSON analysis to print only the recommended UCI move (for example, `e2e4` or `a7a8q`), which is useful for scripts. Without `-simple`, JSON analysis prints status updates, an ASCII board, the current Stupidity Score and rating, and the recommended move with its resulting score and rating. Search-worker progress is printed to the terminal. JSON analysis uses the same search and chess position evaluator as the Glass Bishop game bot, so the same board, side to move, and depth produce the same recommended move. The existing White-centric Stupidity Score and its formula are still reported separately and are not used to select the move. If the selected analysis side has no legal moves, it reports checkmate or stalemate instead. Invalid argument combinations, unreadable/invalid JSON, or invalid position metadata are reported rather than producing an evaluation.

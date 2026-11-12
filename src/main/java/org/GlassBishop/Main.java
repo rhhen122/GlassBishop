@@ -99,20 +99,20 @@ public class Main {
         System.out.println("Glass Bishop - Chess Position Evaluator");
         System.out.println();
         System.out.println("Usage:");
-        System.out.println("  java -jar target/GlassBishop-1.1.1.jar <position.json> [-depth=<positive integer>]");
-        System.out.println("  java -jar target/GlassBishop-1.1.1.jar play [-depth=<positive integer>]");
-        System.out.println("  java -jar target/GlassBishop-1.1.1.jar selfplay [-depth=<positive integer>]");
-        System.out.println("  java -jar target/GlassBishop-1.1.1.jar convert <output.json> [uci-move ...]");
-        System.out.println("  java -jar target/GlassBishop-1.1.1.jar stockfish <binary> [-depth=<positive integer>]");
-        System.out.println("  java -jar target/GlassBishop-1.1.1.jar help");
+        System.out.println("  java -jar target/GlassBishop-X.X.X.jar <position.json> [-depth=<positive integer>]");
+        System.out.println("  java -jar target/GlassBishop-X.X.X.jar play [-depth=<positive integer>]");
+        System.out.println("  java -jar target/GlassBishop-X.X.X.jar selfplay [-depth=<positive integer>]");
+        System.out.println("  java -jar target/GlassBishop-X.X.X.jar convert <output.json> [uci-move ...]");
+        System.out.println("  java -jar target/GlassBishop-X.X.X.jar stockfish <binary> [-depth=<positive integer>]");
+        System.out.println("  java -jar target/GlassBishop-X.X.X.jar help");
         System.out.println();
         System.out.println("Search depth defaults to 4. Any positive integer is accepted; deeper searches take longer.");
         System.out.println();
         System.out.println("Examples:");
-        System.out.println("  java -jar target/GlassBishop-1.1.1.jar examples/starting-position.json");
-        System.out.println("  java -jar target/GlassBishop-1.1.1.jar examples/white-mate-in-one.json");
-        System.out.println("  java -jar target/GlassBishop-1.1.1.jar convert game.json e2e4 e7e5 g1f3");
-        System.out.println("  java -jar target/GlassBishop-1.1.1.jar stockfish /path/to/stockfish -depth=3");
+        System.out.println("  java -jar target/GlassBishop-X.X.X.jar examples/starting-position.json");
+        System.out.println("  java -jar target/GlassBishop-X.X.X.jar examples/white-mate-in-one.json");
+        System.out.println("  java -jar target/GlassBishop-X.X.X.jar convert game.json e2e4 e7e5 g1f3");
+        System.out.println("  java -jar target/GlassBishop-X.X.X.jar stockfish /path/to/stockfish -depth=3");
         System.out.println();
         System.out.println("Uses the play-mode search to recommend a move; reports the Stupidity Score separately.");
         System.out.println("See README.md for JSON format, scoring details, and chess rules.");
@@ -211,7 +211,7 @@ public class Main {
             return args[startIndex + 1];
         }
         throw new IllegalArgumentException(
-                "Usage: java -jar target/GlassBishop-1.1.1.jar play|selfplay [-depth=<positive integer>]");
+                "Usage: java -jar target/GlassBishop-X.X.X.jar play|selfplay [-depth=<positive integer>]");
     }
 
     private static int parsePositiveDepth(String value) {

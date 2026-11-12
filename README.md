@@ -158,27 +158,27 @@ The project uses Maven and Java 21. From the project root, build and run the sha
 
 ```sh
 mvn package
-java -jar target/GlassBishop-1.1.1.jar path/to/position.json
+java -jar target/GlassBishop-X.X.X.jar path/to/position.json
 ```
 
 Run without arguments or pass `help` to display the built-in ASCII-art help menu:
 
 ```sh
-java -jar target/GlassBishop-1.1.1.jar
-java -jar target/GlassBishop-1.1.1.jar help
+java -jar target/GlassBishop-X.X.X.jar
+java -jar target/GlassBishop-X.X.X.jar help
 ```
 
 Start the Swing game and play White against the engine as Black:
 
 ```sh
-java -jar target/GlassBishop-1.1.1.jar play -depth=3
+java -jar target/GlassBishop-X.X.X.jar play -depth=3
 ```
 
 Convert a sequence of legal UCI moves from the standard starting position into a JSON position:
 
 ```sh
-java -jar target/GlassBishop-1.1.1.jar convert game-position.json e2e4 e7e5 g1f3
-java -jar target/GlassBishop-1.1.1.jar game-position.json
+java -jar target/GlassBishop-X.X.X.jar convert game-position.json e2e4 e7e5 g1f3
+java -jar target/GlassBishop-X.X.X.jar game-position.json
 ```
 
 Moves are passed as separate UCI arguments (`e2e4`, or for example `a7a8q` for promotion). The converter validates each move in sequence and writes the resulting board, side to move, castling rights, and en-passant target in the format used by JSON analysis. If no moves are supplied, it writes the standard starting position.
@@ -186,7 +186,7 @@ Moves are passed as separate UCI arguments (`e2e4`, or for example `a7a8q` for p
 Play Glass Bishop against a local Stockfish executable in the GUI:
 
 ```sh
-java -jar target/GlassBishop-1.1.1.jar stockfish /path/to/stockfish -depth=3
+java -jar target/GlassBishop-X.X.X.jar stockfish /path/to/stockfish -depth=3
 ```
 
 Glass Bishop plays White and Stockfish plays Black; both move automatically. The executable must support the UCI protocol. The configured depth is sent to each engine. Close the game window to stop the Stockfish process.
@@ -207,7 +207,7 @@ The search uses iterative deepening, alpha-beta pruning, capture/promotion move 
 Watch the bot play against itself:
 
 ```sh
-java -jar target/GlassBishop-1.1.1.jar selfplay -depth=2
+java -jar target/GlassBishop-X.X.X.jar selfplay -depth=2
 ```
 
 Self-play opens the same board UI and automatically alternates moves for both colors, showing the evaluation bar, move log, and live search progress. Higher depths make self-play substantially slower.
@@ -217,10 +217,10 @@ Click a White piece and then one of its highlighted legal destinations. The boar
 Run a demo:
 
 ```sh
-java -jar target/GlassBishop-1.1.1.jar examples/starting-position.json -depth=3
-java -jar target/GlassBishop-1.1.1.jar examples/starting-position.json
-java -jar target/GlassBishop-1.1.1.jar examples/white-piece-attacked.json
-java -jar target/GlassBishop-1.1.1.jar examples/white-mate-in-one.json
+java -jar target/GlassBishop-X.X.X.jar examples/starting-position.json -depth=3
+java -jar target/GlassBishop-X.X.X.jar examples/starting-position.json
+java -jar target/GlassBishop-X.X.X.jar examples/white-piece-attacked.json
+java -jar target/GlassBishop-X.X.X.jar examples/white-mate-in-one.json
 ```
 
 The CLI accepts no arguments or the single argument `help` to print the help menu, `play` to open the human-versus-engine Swing game, `selfplay` to watch two Glass Bishop sides play, `stockfish <binary>` to have Glass Bishop play Stockfish, `convert <output.json> [uci-move ...]` to create a JSON position, or one JSON file path to analyze a position. Game modes accept the optional `-depth=<positive integer>` search option. JSON analysis uses the same search and chess position evaluator as the Glass Bishop game bot, so the same board, side to move, and depth produce the same recommended move. The existing White-centric Stupidity Score and its formula are still reported separately and are not used to select the move. During analysis it prints status updates as it loads the board, calculates the current score, generates legal moves, and searches candidate moves. For a JSON position, it prints an ASCII board (ranks 8 to 1 from top to bottom, files a to h from left to right). White pieces are uppercase (`P N B R Q K`), Black pieces are lowercase (`p n b r q k`), and `.` marks an empty square. It then prints the current position's White material, attacked White material, mate-in-one status, score, and rating. If legal moves exist, it also prints how many it evaluated and the recommended move in coordinate notation (for example `e2e4` or `a7a8q`), plus the resulting Stupidity Score and rating. If the side to move has no legal moves, it reports checkmate or stalemate instead. Invalid argument combinations, unreadable/invalid JSON, or invalid position metadata are reported rather than producing an evaluation.

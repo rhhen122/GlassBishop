@@ -3,6 +3,7 @@ package org.GlassBishop.ui;
 import org.GlassBishop.engine.ChessGame;
 import org.GlassBishop.engine.Difficulty;
 import org.GlassBishop.engine.PositionEvaluator;
+import org.GlassBishop.engine.StockfishEngine;
 import org.GlassBishop.model.Board;
 import org.GlassBishop.model.Color;
 import org.GlassBishop.model.Move;
@@ -49,9 +50,11 @@ public final class ChessGameWindow {
     private final PositionEvaluator positionEvaluator = new PositionEvaluator();
     private final JFrame frame = new JFrame("Glass Bishop - Play");
     private final boolean selfPlay;
+    private final StockfishEngine stockfish;
     private final Timer selfPlayTimer = new Timer(700, event -> startBotTurn());
     private Square selectedSquare;
     private boolean engineThinking;
+    private boolean handingOffToNewGame;
 
     public ChessGameWindow() {
         this(Difficulty.LEVEL_4.searchDepth(), false);
@@ -66,8 +69,17 @@ public final class ChessGameWindow {
     }
 
     public ChessGameWindow(int searchDepth, boolean selfPlay) {
+        this(searchDepth, selfPlay, null);
+    }
+
+    public ChessGameWindow(int searchDepth, StockfishEngine stockfish) {
+        this(searchDepth, false, stockfish);
+    }
+
+    private ChessGameWindow(int searchDepth, boolean selfPlay, StockfishEngine stockfish) {
         this.searchDepth = searchDepth;
         this.selfPlay = selfPlay;
+        this.stockfish = stockfish;
         this.game = new ChessGame(searchDepth);
         selfPlayTimer.setRepeats(false);
         createWindow();
@@ -77,7 +89,7 @@ public final class ChessGameWindow {
 
     public void show() {
         frame.setVisible(true);
-        if (selfPlay) {
+        if (isAutomatedGame()) {
             selfPlayTimer.start();
         }
     }
@@ -165,8 +177,13 @@ public final class ChessGameWindow {
             if (engineThinking) {
                 return;
             }
+            handingOffToNewGame = stockfish != null;
             frame.dispose();
-            new ChessGameWindow(searchDepth, selfPlay).show();
+            if (stockfish == null) {
+                new ChessGameWindow(searchDepth, selfPlay).show();
+            } else {
+                new ChessGameWindow(searchDepth, stockfish).show();
+            }
         });
         newGame.setFocusPainted(false);
         JPanel controls = new JPanel(new BorderLayout());
@@ -183,11 +200,19 @@ public final class ChessGameWindow {
             public void windowOpened(WindowEvent event) {
                 frame.requestFocus();
             }
+
+            @Override
+            public void windowClosed(WindowEvent event) {
+                selfPlayTimer.stop();
+                if (stockfish != null && !handingOffToNewGame) {
+                    stockfish.close();
+                }
+            }
         });
     }
 
     private void handleSquareClick(Square square) {
-        if (selfPlay || engineThinking || game.board().sideToMove() != Color.WHITE
+        if (isAutomatedGame() || engineThinking || game.board().sideToMove() != Color.WHITE
                 || game.legalMoves().isEmpty()) {
             return;
         }
@@ -268,11 +293,21 @@ public final class ChessGameWindow {
 
     private void startBotTurn() {
         engineThinking = true;
-        status.setText(selfPlay ? "Self-play: bot is thinking..." : "Starting engine search...");
+        status.setText(stockfish != null ? "Glass Bishop and Stockfish are playing..."
+                : selfPlay ? "Self-play: bot is thinking..." : "Starting engine search...");
         refreshBoard();
         new SwingWorker<Move, Void>() {
             @Override
-            protected Move doInBackground() {
+            protected Move doInBackground() throws Exception {
+                if (stockfish != null && game.board().sideToMove() == Color.BLACK) {
+                    String uciMove = stockfish.bestMove(game.uciMoveHistory(), searchDepth);
+                    Move move = game.legalMoves().stream()
+                            .filter(candidate -> candidate.toUci().equalsIgnoreCase(uciMove))
+                            .findFirst()
+                            .orElseThrow(() -> new IllegalStateException(
+                                    "Stockfish returned an illegal move: " + uciMove));
+                    return game.playExternalMove(move);
+                }
                 return game.playBotMove(message ->
                         SwingUtilities.invokeLater(() -> status.setText(message)));
             }
@@ -284,7 +319,7 @@ public final class ChessGameWindow {
                     get();
                     refreshBoard();
                     updateStatus();
-                    if (selfPlay && !game.legalMoves().isEmpty()) {
+                    if (isAutomatedGame() && !game.legalMoves().isEmpty()) {
                         selfPlayTimer.start();
                     }
                 } catch (InterruptedException exception) {
@@ -320,7 +355,7 @@ public final class ChessGameWindow {
                     background = LEGAL_DESTINATION;
                 }
                 button.setBackground(background);
-                button.setEnabled(!selfPlay);
+                button.setEnabled(!isAutomatedGame());
             }
         }
         int evaluation = positionEvaluator.evaluate(position);
@@ -340,26 +375,42 @@ public final class ChessGameWindow {
 
     private void updateStatus() {
         if (engineThinking) {
-            status.setText(selfPlay ? "Self-play: bot is thinking..." : "Engine is thinking...");
+            status.setText(stockfish != null
+                    ? (game.board().sideToMove() == Color.BLACK
+                    ? "Stockfish is thinking..." : "Glass Bishop is thinking...")
+                    : selfPlay ? "Self-play: bot is thinking..." : "Engine is thinking...");
             return;
         }
         if (game.legalMoves().isEmpty()) {
             if (game.isCheckmate()) {
-                String winner = game.board().sideToMove() == Color.WHITE
-                        ? "Engine wins" : "You win";
+                String winner;
+                if (stockfish != null) {
+                    winner = game.board().sideToMove() == Color.WHITE
+                            ? "Stockfish wins" : "Glass Bishop wins";
+                } else {
+                    winner = game.board().sideToMove() == Color.WHITE
+                            ? "Engine wins" : "You win";
+                }
                 status.setText("Checkmate. " + winner + ".");
             } else {
                 status.setText("Stalemate. The game is a draw.");
             }
             return;
         }
-        if (selfPlay) {
+        if (stockfish != null) {
+            status.setText("Glass Bishop vs Stockfish  •  " + game.board().sideToMove()
+                    + " to move  •  depth " + searchDepth);
+        } else if (selfPlay) {
             status.setText("Self-play  •  " + game.board().sideToMove() + " to move  •  depth " + searchDepth);
         } else {
             status.setText(game.board().sideToMove() == Color.WHITE
                     ? "Your turn (White). Select a piece, then a highlighted square.  •  depth " + searchDepth
                     : "Engine's turn (Black).  •  depth " + searchDepth);
         }
+    }
+
+    private boolean isAutomatedGame() {
+        return selfPlay || stockfish != null;
     }
 
     static String pieceSymbol(Piece piece) {

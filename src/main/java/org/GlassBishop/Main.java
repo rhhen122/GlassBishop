@@ -3,9 +3,12 @@ package org.GlassBishop;
 import org.GlassBishop.engine.MoveRecommendation;
 import org.GlassBishop.engine.MoveGenerator;
 import org.GlassBishop.engine.AttackDetector;
+import org.GlassBishop.engine.MoveSequenceConverter;
 import org.GlassBishop.engine.PositionAnalyzer;
 import org.GlassBishop.engine.SmartMoveSelector;
+import org.GlassBishop.engine.StockfishEngine;
 import org.GlassBishop.io.PositionJsonReader;
+import org.GlassBishop.io.PositionJsonWriter;
 import org.GlassBishop.model.Board;
 import org.GlassBishop.scoring.ScoreResult;
 import org.GlassBishop.scoring.StupidityScorer;
@@ -22,6 +25,14 @@ public class Main {
     public static void main(String[] args) throws IOException {
         if (args.length == 0 || (args.length == 1 && args[0].equalsIgnoreCase("help"))) {
             printHelp();
+            return;
+        }
+        if (args[0].equalsIgnoreCase("convert")) {
+            convertMoves(args);
+            return;
+        }
+        if (args[0].equalsIgnoreCase("stockfish")) {
+            playStockfish(args);
             return;
         }
         if (args[0].equalsIgnoreCase("play") || args[0].equalsIgnoreCase("selfplay")) {
@@ -88,19 +99,61 @@ public class Main {
         System.out.println("Glass Bishop - Chess Position Evaluator");
         System.out.println();
         System.out.println("Usage:");
-        System.out.println("  java -jar target/GlassBishop-1.1.0.jar <position.json> [-depth=<positive integer>]");
-        System.out.println("  java -jar target/GlassBishop-1.1.0.jar play [-depth=<positive integer>]");
-        System.out.println("  java -jar target/GlassBishop-1.1.0.jar selfplay [-depth=<positive integer>]");
-        System.out.println("  java -jar target/GlassBishop-1.1.0.jar help");
+        System.out.println("  java -jar target/GlassBishop-1.1.1.jar <position.json> [-depth=<positive integer>]");
+        System.out.println("  java -jar target/GlassBishop-1.1.1.jar play [-depth=<positive integer>]");
+        System.out.println("  java -jar target/GlassBishop-1.1.1.jar selfplay [-depth=<positive integer>]");
+        System.out.println("  java -jar target/GlassBishop-1.1.1.jar convert <output.json> [uci-move ...]");
+        System.out.println("  java -jar target/GlassBishop-1.1.1.jar stockfish <binary> [-depth=<positive integer>]");
+        System.out.println("  java -jar target/GlassBishop-1.1.1.jar help");
         System.out.println();
         System.out.println("Search depth defaults to 4. Any positive integer is accepted; deeper searches take longer.");
         System.out.println();
         System.out.println("Examples:");
-        System.out.println("  java -jar target/GlassBishop-1.1.0.jar examples/starting-position.json");
-        System.out.println("  java -jar target/GlassBishop-1.1.0.jar examples/white-mate-in-one.json");
+        System.out.println("  java -jar target/GlassBishop-1.1.1.jar examples/starting-position.json");
+        System.out.println("  java -jar target/GlassBishop-1.1.1.jar examples/white-mate-in-one.json");
+        System.out.println("  java -jar target/GlassBishop-1.1.1.jar convert game.json e2e4 e7e5 g1f3");
+        System.out.println("  java -jar target/GlassBishop-1.1.1.jar stockfish /path/to/stockfish -depth=3");
         System.out.println();
         System.out.println("Uses the play-mode search to recommend a move; reports the Stupidity Score separately.");
         System.out.println("See README.md for JSON format, scoring details, and chess rules.");
+    }
+
+    private static void convertMoves(String[] args) throws IOException {
+        if (args.length < 2) {
+            System.err.println("Usage: convert <output.json> [uci-move ...]");
+            return;
+        }
+        try {
+            Board board = new MoveSequenceConverter().convert(
+                    java.util.Arrays.asList(args).subList(2, args.length));
+            new PositionJsonWriter().write(board, Path.of(args[1]));
+            System.out.println("Wrote position after " + (args.length - 2)
+                    + " move(s) to " + args[1]);
+        } catch (IllegalArgumentException exception) {
+            System.err.println(exception.getMessage());
+        }
+    }
+
+    private static void playStockfish(String[] args) throws IOException {
+        Path binary;
+        int searchDepth;
+        try {
+            if (args.length < 2 || args.length > 3) {
+                throw new IllegalArgumentException(
+                        "Usage: stockfish <binary> [-depth=<positive integer>]");
+            }
+            binary = Path.of(args[1]);
+            searchDepth = parseDepth(args, 2);
+        } catch (IllegalArgumentException exception) {
+            System.err.println(exception.getMessage());
+            return;
+        }
+        if (GraphicsEnvironment.isHeadless()) {
+            throw new IllegalStateException("Cannot start the Swing game in a headless environment");
+        }
+        StockfishEngine stockfish = new StockfishEngine(binary);
+        SwingUtilities.invokeLater(() ->
+                new ChessGameWindow(searchDepth, stockfish).show());
     }
 
     private static int parseDepth(String[] args, int startIndex) {
@@ -158,7 +211,7 @@ public class Main {
             return args[startIndex + 1];
         }
         throw new IllegalArgumentException(
-                "Usage: java -jar target/GlassBishop-1.1.0.jar play|selfplay [-depth=<positive integer>]");
+                "Usage: java -jar target/GlassBishop-1.1.1.jar play|selfplay [-depth=<positive integer>]");
     }
 
     private static int parsePositiveDepth(String value) {

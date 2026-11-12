@@ -13,6 +13,7 @@ public final class ChessGame {
     private final SmartMoveSelector moveSelector;
     private final ChessNotation notation = new ChessNotation();
     private final List<String> moveHistory = new ArrayList<>();
+    private final List<String> uciMoveHistory = new ArrayList<>();
     private Board board = Board.standardStartingPosition();
 
     public ChessGame() {
@@ -37,6 +38,10 @@ public final class ChessGame {
 
     public List<String> moveHistory() {
         return List.copyOf(moveHistory);
+    }
+
+    public List<String> uciMoveHistory() {
+        return List.copyOf(uciMoveHistory);
     }
 
     public boolean isCheckmate() {
@@ -71,6 +76,10 @@ public final class ChessGame {
         return playLegalMove(move);
     }
 
+    public Move playExternalMove(Move move) {
+        return playLegalMove(move);
+    }
+
     private Move playLegalMove(Move move) {
         List<Move> legalMoves = legalMoves();
         if (!legalMoves.contains(move)) {
@@ -81,6 +90,7 @@ public final class ChessGame {
         moveHistory.add(board.sideToMove() == Color.WHITE
                 ? moveNumber + ". " + san
                 : moveNumber + "... " + san);
+        uciMoveHistory.add(move.toUci());
         board = board.apply(move);
         return move;
     }

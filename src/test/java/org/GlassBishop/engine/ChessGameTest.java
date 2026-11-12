@@ -5,6 +5,8 @@ import org.GlassBishop.model.PieceType;
 import org.GlassBishop.model.Square;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -52,5 +54,17 @@ class ChessGameTest {
 
         assertEquals(Color.WHITE, game.board().sideToMove());
         assertEquals(2, game.moveHistory().size());
+    }
+
+    @Test
+    void externalOpponentMovesAreValidatedAndRecordedAsUci() {
+        ChessGame game = new ChessGame(Difficulty.LEVEL_1);
+        var e4 = game.legalMoves().stream()
+                .filter(move -> move.toUci().equals("e2e4"))
+                .findFirst().orElseThrow();
+        game.playExternalMove(e4);
+
+        assertEquals(List.of("e2e4"), game.uciMoveHistory());
+        assertEquals(Color.BLACK, game.board().sideToMove());
     }
 }

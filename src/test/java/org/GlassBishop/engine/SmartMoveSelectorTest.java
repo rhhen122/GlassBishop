@@ -8,12 +8,32 @@ import org.GlassBishop.model.PieceType;
 import org.GlassBishop.model.Square;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.EnumSet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SmartMoveSelectorTest {
+    @Test
+    void parallelRootSearchMatchesSingleThreadedSearch() {
+        Board board = Board.standardStartingPosition();
+        var progress = new ArrayList<String>();
+
+        var sequential = new SmartMoveSelector(3, 1).bestMove(board).orElseThrow();
+        var parallel = new SmartMoveSelector(3, 4)
+                .bestMove(board, progress::add).orElseThrow();
+
+        assertEquals(sequential, parallel);
+        assertTrue(progress.stream().anyMatch(message -> message.contains("root moves in parallel")));
+    }
+
+    @Test
+    void rejectsNonPositiveSearchParallelism() {
+        assertThrows(IllegalArgumentException.class, () -> new SmartMoveSelector(1, 0));
+    }
+
     @Test
     void blackSearchCapturesTheCheckingWhiteQueen() {
         Piece[][] squares = new Piece[8][8];

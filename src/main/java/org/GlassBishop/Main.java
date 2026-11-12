@@ -59,17 +59,29 @@ public class Main {
             System.err.println(exception.getMessage());
             return;
         }
-        System.out.println("Loading position from " + positionArguments.path() + "...");
+        if (!positionArguments.simple()) {
+            System.out.println("Loading position from " + positionArguments.path() + "...");
+        }
         Board board = new PositionJsonReader().read(positionArguments.path());
+        if (positionArguments.color() != null) {
+            board = board.forSideToMove(positionArguments.color());
+        }
+        Board analyzedBoard = board;
+        var bestMove = new SmartMoveSelector(positionArguments.depth()).bestMove(
+                board, positionArguments.simple() ? message -> { } : System.out::println);
+        if (positionArguments.simple()) {
+            bestMove.ifPresentOrElse(move -> System.out.println(move.toUci()),
+                    () -> System.err.println("No legal move available."));
+            return;
+        }
         System.out.println("Analyzing White's material, attacked pieces, and mate-in-one...");
         ScoreResult result = new StupidityScorer().score(board);
         System.out.println("Current position evaluated. Searching for the strongest legal move to depth "
                 + positionArguments.depth() + "...");
-        var bestMove = new SmartMoveSelector(positionArguments.depth()).bestMove(board, System.out::println);
         int legalMoveCount = new MoveGenerator(new AttackDetector())
                 .legalMoves(board, board.sideToMove()).size();
         var recommendation = bestMove.map(move -> new MoveRecommendation(move,
-                new StupidityScorer().score(board.apply(move)), legalMoveCount));
+                new StupidityScorer().score(analyzedBoard.apply(move)), legalMoveCount));
 
         System.out.println(new PrintASCII().printSmallerASCII());
         System.out.println("Side to move: " + board.sideToMove());
@@ -89,6 +101,10 @@ public class Main {
             System.out.println("Recommended move: " + choice.move().toUci());
             System.out.println("Resulting Stupidity Score: " + choice.resultingPosition().score());
             System.out.println("Resulting Stupidity Rating: " + choice.resultingPosition().rating());
+            System.out.println();
+            System.out.println("Board after recommended move ("
+                    + board.sideToMove().opposite() + " to move):");
+            System.out.println(new BoardPrinter().print(board.apply(choice.move())));
         } else if (new PositionAnalyzer().isCheckmate(board, board.sideToMove())) {
             System.out.println("No legal moves: " + board.sideToMove() + " is checkmated.");
         } else {
@@ -101,7 +117,7 @@ public class Main {
         System.out.println("Glass Bishop - Chess Position Evaluator");
         System.out.println();
         System.out.println("Usage:");
-        System.out.println("  java -jar target/GlassBishop-X.X.X.jar <position.json> [-depth=<positive integer>]");
+        System.out.println("  java -jar target/GlassBishop-X.X.X.jar <position.json> [-depth=<positive integer>] [-color=white|black] [-simple]");
         System.out.println("  java -jar target/GlassBishop-X.X.X.jar play [-depth=<positive integer>] [-color=white|black]");
         System.out.println("  java -jar target/GlassBishop-X.X.X.jar selfplay [-depth=<positive integer>]");
         System.out.println("  java -jar target/GlassBishop-X.X.X.jar convert <output.json> [uci-move ...]");
@@ -114,6 +130,7 @@ public class Main {
         System.out.println("  java -jar target/GlassBishop-X.X.X.jar examples/starting-position.json");
         System.out.println("  java -jar target/GlassBishop-X.X.X.jar examples/white-mate-in-one.json");
         System.out.println("  java -jar target/GlassBishop-X.X.X.jar play -color=black");
+        System.out.println("  java -jar target/GlassBishop-X.X.X.jar examples/starting-position.json -simple");
         System.out.println("  java -jar target/GlassBishop-X.X.X.jar convert game.json e2e4 e7e5 g1f3");
         System.out.println("  java -jar target/GlassBishop-X.X.X.jar stockfish /path/to/stockfish -depth=3");
         System.out.println();
@@ -229,9 +246,32 @@ public class Main {
         Path path = null;
         int depth = 4;
         boolean depthSpecified = false;
+        boolean simple = false;
+        boolean simpleSpecified = false;
+        Color color = null;
+        boolean colorSpecified = false;
         for (int index = 0; index < args.length; index++) {
             String argument = args[index];
-            if (argument.startsWith("-depth=") || argument.startsWith("--depth=")) {
+            if (argument.equals("-simple") || argument.equals("--simple")) {
+                if (simpleSpecified) {
+                    throw new IllegalArgumentException("Specify simple mode only once.");
+                }
+                simple = true;
+                simpleSpecified = true;
+            } else if (argument.startsWith("-color=") || argument.startsWith("--color=")) {
+                if (colorSpecified) {
+                    throw new IllegalArgumentException("Specify the analysis color only once.");
+                }
+                color = parsePlayerColor(argument.substring(argument.indexOf('=') + 1));
+                colorSpecified = true;
+            } else if (argument.equals("-color") || argument.equals("--color")) {
+                if (colorSpecified || index + 1 >= args.length) {
+                    throw new IllegalArgumentException(
+                            "Usage: <position.json> [-depth=<positive integer>] [-color=white|black] [-simple]");
+                }
+                color = parsePlayerColor(args[++index]);
+                colorSpecified = true;
+            } else if (argument.startsWith("-depth=") || argument.startsWith("--depth=")) {
                 if (depthSpecified) {
                     throw new IllegalArgumentException("Specify the search depth only once.");
                 }
@@ -258,7 +298,7 @@ public class Main {
             throw new IllegalArgumentException(
                     "Expected one position JSON file, 'play', or 'selfplay'. Run with 'help' for usage.");
         }
-        return new PositionArguments(path, depth);
+        return new PositionArguments(path, depth, simple, color);
     }
 
     private static String depthValue(String[] args, int startIndex) {
@@ -288,7 +328,7 @@ public class Main {
         }
     }
 
-    private record PositionArguments(Path path, int depth) {
+    private record PositionArguments(Path path, int depth, boolean simple, Color color) {
     }
 
     private record PlayArguments(int depth, Color humanColor) {

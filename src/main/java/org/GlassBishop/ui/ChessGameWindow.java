@@ -320,7 +320,10 @@ public final class ChessGameWindow {
                     return game.playExternalMove(move);
                 }
                 return game.playBotMove(message ->
-                        SwingUtilities.invokeLater(() -> status.setText(message)));
+                        {
+                            System.out.println("[Engine] " + message);
+                            SwingUtilities.invokeLater(() -> status.setText(message));
+                        });
             }
 
             @Override

@@ -36,4 +36,53 @@ class MainTest {
         assertEquals(PieceType.KNIGHT, board.pieceAt(Square.parse("f3")).type());
         assertTrue(console.toString(StandardCharsets.UTF_8).contains("Wrote position after 3 move(s)"));
     }
+
+    @Test
+    void simpleFlagPrintsOnlyTheRecommendedMove() throws Exception {
+        PrintStream originalOut = System.out;
+        ByteArrayOutputStream console = new ByteArrayOutputStream();
+        try {
+            System.setOut(new PrintStream(console, true, StandardCharsets.UTF_8));
+            Main.main(new String[]{"examples/starting-position.json", "-depth=1", "-simple"});
+        } finally {
+            System.setOut(originalOut);
+        }
+
+        assertTrue(console.toString(StandardCharsets.UTF_8)
+                .matches("[a-h][1-8][a-h][1-8][qrbn]?\\R"));
+    }
+
+    @Test
+    void regularAnalysisPrintsTheBoardAfterTheRecommendedMove() throws Exception {
+        PrintStream originalOut = System.out;
+        ByteArrayOutputStream console = new ByteArrayOutputStream();
+        try {
+            System.setOut(new PrintStream(console, true, StandardCharsets.UTF_8));
+            Main.main(new String[]{"examples/starting-position.json", "-depth=1"});
+        } finally {
+            System.setOut(originalOut);
+        }
+
+        String output = console.toString(StandardCharsets.UTF_8);
+        assertTrue(output.contains("Board after recommended move (BLACK to move):"));
+        assertTrue(output.indexOf("Board after recommended move")
+                > output.indexOf("Recommended move:"));
+    }
+
+    @Test
+    void colorFlagSelectsBlackMoveEvenWhenInputSaysWhiteToMove() throws Exception {
+        PrintStream originalOut = System.out;
+        ByteArrayOutputStream console = new ByteArrayOutputStream();
+        try {
+            System.setOut(new PrintStream(console, true, StandardCharsets.UTF_8));
+            Main.main(new String[]{
+                    "examples/starting-position.json", "-depth=1", "-color=black", "-simple"
+            });
+        } finally {
+            System.setOut(originalOut);
+        }
+
+        assertTrue(console.toString(StandardCharsets.UTF_8)
+                .matches("[a-h][78][a-h][1-8][qrbn]?\\R"));
+    }
 }
